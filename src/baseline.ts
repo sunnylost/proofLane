@@ -6,7 +6,7 @@ import { visibleFiles } from './git.js';
 import { atomicJson, readJson, stateDirectory } from './storage.js';
 import type { Finding, VerificationResult } from './types.js';
 
-const entry = z.object({ fingerprint: z.string().regex(/^[a-f0-9]{64}$/), contentDigest: z.string(), source: z.enum(['oxlint', 'vitest', 'knip', 'react-doctor']), file: z.string().refine((file) => !isAbsolute(file) && !file.includes('\\') && !file.split('/').includes('..') && !file.includes('\0')), state: z.enum(['active', 'resolved']) });
+const entry = z.object({ fingerprint: z.string().regex(/^[a-f0-9]{64}$/), contentDigest: z.string(), entity: z.string().optional(), source: z.enum(['oxlint', 'vitest', 'knip', 'react-doctor']), file: z.string().refine((file) => !isAbsolute(file) && !file.includes('\\') && !file.split('/').includes('..') && !file.includes('\0')), state: z.enum(['active', 'resolved']) });
 const schema = z.object({ schemaVersion: z.literal(1), fingerprintVersion: z.literal(1), configuration: z.string(), versions: z.record(z.string(), z.string()), entries: z.array(entry) });
 type Baseline = z.infer<typeof schema>;
 export type BaselineAction = 'create' | 'update' | 'reset';
@@ -42,7 +42,7 @@ export async function fingerprints(root: string, findings: Finding[]): Promise<v
   for (const finding of findings) {
     const content = await readFile(join(root, finding.location.file), 'utf8');
     const anchor = finding.location.line === undefined ? finding.message : (content.split(/\r?\n/)[finding.location.line - 1] ?? '').trim();
-    const identity = JSON.stringify([finding.source, finding.rule, finding.location.file, finding.severity, finding.message, anchor]);
+    const identity = JSON.stringify([finding.source, finding.rule, finding.location.file, finding.severity, finding.entity ?? finding.message, finding.entity ? '' : anchor]);
     const ordinal = (counts.get(identity) ?? 0) + 1;
     counts.set(identity, ordinal);
     finding.fingerprint = createHash('sha256').update(JSON.stringify([identity, ordinal])).digest('hex');
@@ -76,7 +76,8 @@ export async function compareBaseline(root: string, result: VerificationResult, 
   const current = new Set(result.findings.map((f) => f.fingerprint));
   for (const old of previous.values()) {
     const analyzer = result.analyzers.find((a) => a.name === old.source);
-    if (old.state === 'active' && !current.has(old.fingerprint) && analyzer?.status === 'completed' && analyzer.coverage?.complete && analyzer.coverage.checked.includes(old.file)) result.resolved.push(old.fingerprint);
+    const covered = old.entity ? analyzer?.coverage?.entities?.includes(old.entity) : analyzer?.coverage?.kind === 'project' || analyzer?.coverage?.checked.includes(old.file);
+    if (old.state === 'active' && !current.has(old.fingerprint) && analyzer?.status === 'completed' && analyzer.coverage?.complete && covered) result.resolved.push(old.fingerprint);
   }
   if (!action) return;
   if (action === 'create' && baseline) throw new Error('Baseline already exists; use update or reset explicitly');
@@ -84,7 +85,7 @@ export async function compareBaseline(root: string, result: VerificationResult, 
   if (result.errors.length || result.analyzers.some((a) => a.status !== 'completed' || !a.coverage?.complete)) throw new Error('Cannot write baseline without complete successful analyzer coverage');
   for (const id of result.resolved) previous.get(id)!.state = 'resolved';
   for (const finding of result.findings) {
-    previous.set(finding.fingerprint!, { fingerprint: finding.fingerprint!, contentDigest: '', source: finding.source, file: finding.location.file, state: 'active' });
+    previous.set(finding.fingerprint!, { fingerprint: finding.fingerprint!, contentDigest: '', entity: finding.entity, source: finding.source, file: finding.location.file, state: 'active' });
     finding.status = 'existing';
   }
   for (const item of previous.values()) item.contentDigest = await contentDigest(root, item.file);

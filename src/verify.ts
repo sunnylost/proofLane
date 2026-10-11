@@ -1,5 +1,7 @@
 import { changedFiles, repositoryRoot, snapshot, sourceFile } from './git.js';
 import { analyze } from './oxlint.js';
+import { analyzeTool } from './analyzers.js';
+import { readConfig } from './config.js';
 import type { VerificationResult } from './types.js';
 import { saveRun } from './evidence.js';
 import { baselineChangedFiles, compareBaseline, configurationDigest, configurationFile, fingerprints, loadBaseline, lockBaseline, type BaselineAction } from './baseline.js';
@@ -20,6 +22,7 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
     const root = await repositoryRoot(request.root, request.signal);
     result.root = root;
     if (request.baselineAction) unlock = await lockBaseline(root);
+    const config = await readConfig(root);
     const baseline = request.baselineAction === 'reset' ? undefined : await loadBaseline(root);
     result.snapshot = await snapshot(root, request.signal);
     result.configuration = await configurationDigest(root, request.signal);
@@ -40,12 +43,26 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
         reason = paths.length ? 'Lint changed JavaScript and TypeScript files' : 'No changed JavaScript or TypeScript files';
       }
     }
-    if (paths.length === 0) {
-      result.analyzers.push({ name: 'oxlint', status: 'skipped', reason });
-    } else {
-      const report = await analyze(root, paths, reason, request.timeoutMs, request.signal);
+    let next = 0;
+    const reports: Awaited<ReturnType<typeof analyze>>[] = [];
+    const worker = async () => {
+      while (next < config.analyzers.length) {
+        const index = next++;
+        const name = config.analyzers[index]!;
+        const selected = paths.length > 0 && (name !== 'knip' || result.scope === 'project');
+        if (!selected) {
+          reports[index] = { analyzer: { name, status: 'skipped', reason: name === 'knip' && paths.length ? 'Knip graph analysis requires full profile or structural/configuration changes' : reason }, findings: [] };
+          continue;
+        }
+        reports[index] = name === 'oxlint'
+          ? await analyze(root, paths, reason, request.timeoutMs, request.signal)
+          : await analyzeTool(name, root, name === 'vitest' && result.scope === 'files' ? paths.map((file) => file.slice(2)) : undefined, request.timeoutMs, request.signal);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(config.concurrency, config.analyzers.length) }, worker));
+    for (const report of reports) {
       result.analyzers.push(report.analyzer);
-      result.findings = report.findings;
+      result.findings.push(...report.findings);
       if (report.error) result.errors.push(report.error);
     }
     if (await snapshot(root, request.signal) !== result.snapshot) result.errors.push('Repository changed during verification; rerun against a stable working tree');

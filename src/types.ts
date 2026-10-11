@@ -3,6 +3,7 @@ export interface Finding {
   id: string;
   source: AnalyzerName;
   fingerprint?: string;
+  entity?: string;
   rule: string;
   category: 'lint' | 'test' | 'dead-code' | 'react';
   severity: 'error' | 'warning' | 'info';
@@ -19,7 +20,7 @@ export interface AnalyzerResult {
   version?: string;
   filesChecked?: number;
   durationMs?: number;
-  coverage?: { requested: string[]; checked: string[]; excluded: string[]; complete: boolean; reason?: string };
+  coverage?: { requested: string[]; checked: string[]; excluded: string[]; complete: boolean; reason?: string; kind?: 'project'; entities?: string[] };
   evidence?: { stdout: string; stderr: string; exitCode: number | null; truncated: boolean };
 }
 
