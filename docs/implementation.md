@@ -11,7 +11,7 @@
 - [x] 工作树变化检测；失败时不误报通过。
 - [x] CLI 端到端回归测试与可保存的运行产物。
 - [x] foliosmith/epub 临时副本真实验收：直接工具对照、注入错误、修复。
-- [x] GitHub Actions 检查与测试产物上传配置；远端执行待推送后确认。
+- [x] GitHub Actions 检查与测试产物上传，四个平台配置均已实际通过。
 
 四个分析器已完成真实协议接入；核心 MVP 已实现，云端平台 matrix 的实际验收单独记录。
 
@@ -50,7 +50,18 @@ React Doctor 覆盖边界：字符串与对象属性渲染样例的诊断不同�
 - [x] 仓库内部文件链接、已初始化子模块及脏子模块检测；越界链接与未初始化子模块明确失败。
 - [x] 四路流式快照与千文件端到端验收。
 - [x] Windows 进程树终止实现及跨平台 CI matrix。
-- [ ] Linux / Windows / macOS 云端 matrix 实际运行，待推送后确认。
+- [x] Linux / Windows / macOS 云端 matrix 实际运行并通过。
+
+2026-10-11，提交 `faafa5a` 的 [GitHub Actions 验收](https://github.com/sunnylost/proofLane/actions/runs/38105792791)完成：四组均通过安装、类型检查、lint、构建与 E2E，并上传独立测试产物。
+
+| 平台 | Node | E2E 通过 | 跳过 |
+| --- | --- | --- | --- |
+| Linux | 22.13.0 | 43 | 0 |
+| Linux | 24 | 43 | 0 |
+| macOS | 24 | 43 | 0 |
+| Windows | 24 | 42 | 1（POSIX SIGINT） |
+
+Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链接测试均实际通过；SIGINT 用例仅验证 POSIX 信号语义，不将其计为 Windows 已覆盖。
 
 ## 验收中发现并修复
 
