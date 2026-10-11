@@ -3,6 +3,8 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { verify } from './verify.js';
 import type { VerificationResult } from './types.js';
+import { explain } from './evidence.js';
+import { repositoryRoot } from './git.js';
 
 const help = `ProofLane — verify the current repository with its local Oxlint installation
 
@@ -38,6 +40,10 @@ try {
   json = values.json ?? false;
   if (values.help) {
     console.log(help);
+    process.exit(0);
+  }
+  if (positionals[0] === 'explain' && positionals.length >= 2 && positionals.length <= 3) {
+    console.log(JSON.stringify(await explain(await repositoryRoot(resolve(values.root ?? '.')), positionals[1]!, positionals[2]), null, json ? undefined : 2));
     process.exit(0);
   }
   const baselineAction = positionals[0] === 'baseline' && ['create', 'update', 'reset'].includes(positionals[1]!) ? positionals[1] as 'create' | 'update' | 'reset' : undefined;

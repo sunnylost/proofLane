@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { run } from './process.js';
 import type { AnalyzerResult, Finding } from './types.js';
 import { sourceFile, visibleFiles } from './git.js';
+import { evidence } from './evidence.js';
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Oxlint JSON object');
@@ -40,6 +41,7 @@ export async function analyze(root: string, paths: string[], reason: string, tim
   const started = performance.now();
   let version: string | undefined;
   let findings: Finding[] = [];
+  let raw: AnalyzerResult['evidence'];
   try {
     const packageFile = await realpath(join(root, 'node_modules/oxlint/package.json'));
     const manifest = object(JSON.parse(await readFile(packageFile, 'utf8')));
@@ -48,6 +50,7 @@ export async function analyze(root: string, paths: string[], reason: string, tim
     const bin = typeof manifest.bin === 'string' ? manifest.bin : object(manifest.bin).oxlint;
     if (typeof bin !== 'string') throw new Error('Oxlint package has no CLI entrypoint');
     const result = await run(process.execPath, [resolve(dirname(packageFile), bin), '--format', 'json', '--', ...paths], root, timeoutMs, signal);
+    raw = evidence(result);
     if (result.failure) throw new Error(result.failure);
     let report: Record<string, unknown>;
     try { report = object(JSON.parse(result.stdout)); }
@@ -66,11 +69,11 @@ export async function analyze(root: string, paths: string[], reason: string, tim
     const checked = complete ? listed.sort() : [];
     const requested = paths[0] === '.' ? candidates : paths.map((file) => file.replace(/^\.\//, ''));
     const coverage = { requested, checked, excluded: complete ? requested.filter((file) => !checked.includes(file)) : [], complete, ...(!complete ? { reason: 'Analyzer file listing is unavailable or ambiguous; resolved findings cannot be inferred' } : {}) };
-    return { analyzer: { name: 'oxlint', status: 'completed', version, reason, filesChecked: report.number_of_files as number, coverage, durationMs: Math.round(performance.now() - started) }, findings };
+    return { analyzer: { name: 'oxlint', status: 'completed', version, reason, filesChecked: report.number_of_files as number, coverage, evidence: raw, durationMs: Math.round(performance.now() - started) }, findings };
   } catch (error) {
     const message = (error as NodeJS.ErrnoException).code === 'ENOENT'
       ? 'Oxlint is not installed in this repository; install it locally before verification'
       : error instanceof Error ? error.message : String(error);
-    return { analyzer: { name: 'oxlint', status: 'failed', version, reason: message, durationMs: Math.round(performance.now() - started) }, findings, error: message };
+    return { analyzer: { name: 'oxlint', status: 'failed', version, reason: message, evidence: raw, durationMs: Math.round(performance.now() - started) }, findings, error: message };
   }
 }

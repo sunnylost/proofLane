@@ -1,6 +1,7 @@
 import { changedFiles, repositoryRoot, snapshot, sourceFile } from './git.js';
 import { analyze } from './oxlint.js';
 import type { VerificationResult } from './types.js';
+import { saveRun } from './evidence.js';
 import { baselineChangedFiles, compareBaseline, configurationDigest, configurationFile, fingerprints, loadBaseline, lockBaseline, type BaselineAction } from './baseline.js';
 
 export interface VerifyRequest {
@@ -56,5 +57,8 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
   } finally {
     if (unlock) await unlock();
   }
+  try { await saveRun(result); }
+  catch (error) { result.outcome = 'incomplete'; result.errors.push(`Could not save evidence: ${String(error)}`); delete result.runId; }
+  for (const analyzer of result.analyzers) delete analyzer.evidence;
   return result;
 }
