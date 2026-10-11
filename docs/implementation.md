@@ -33,8 +33,8 @@ P0 的 Oxlint 协议已完成；其余三个分析器的协议验证随各自接
 
 ## P4：MCP 与 benchmark
 
-- [ ] stdio MCP 暴露 `check_changes`、`check_project`、`explain`，复用 CLI 的核心执行入口。
-- [ ] 验证 CLI/MCP 语义一致、取消与输出预算。
+- [x] stdio MCP 暴露 `check_changes`、`check_project`、`explain`，复用 CLI 的核心执行入口。
+- [x] 验证 CLI/MCP 语义一致、取消与输出预算。
 - [ ] 相同任务/模型/预算/工具版本进行有无 Harness 对照，由独立验收判断逃逸。
 - [ ] 记录任务成功率、验证逃逸、token、耗时和误报导致的修改。
 

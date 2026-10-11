@@ -6,9 +6,12 @@ import type { VerificationResult } from './types.js';
 import { explain } from './evidence.js';
 import { repositoryRoot } from './git.js';
 
-const help = `ProofLane — verify the current repository with its local Oxlint installation
+const help = `ProofLane — verify the repository with its configured local analyzers
 
 Usage: prooflane verify <changed|full> [options]
+       prooflane baseline <create|update|reset> [options]
+       prooflane explain <runId> [findingId] [options]
+       prooflane mcp --root <repository>
   --root <path>          Repository or a directory inside it (default: cwd)
   --base <revision>      Compare working tree with this commit (changed only)
   --timeout-ms <number>  Analyzer timeout (default: 60000)
@@ -16,7 +19,7 @@ Usage: prooflane verify <changed|full> [options]
   --help                Show usage
 
 Exit codes: 0 pass, 1 blocked by findings, 2 incomplete verification.
-P1 covers lint only. Baseline, other analyzers and MCP are not implemented.`;
+Configure analyzers in prooflane.json. Pass covers only the selected checks.`;
 
 function compact(result: VerificationResult): string {
   const lines = [`${result.outcome.toUpperCase()} ${result.profile} (${result.scope}) — ${result.findings.length} findings`];
@@ -40,6 +43,11 @@ try {
   json = values.json ?? false;
   if (values.help) {
     console.log(help);
+    process.exit(0);
+  }
+  if (positionals[0] === 'mcp' && positionals.length === 1) {
+    const { serve } = await import('./mcp.js');
+    await serve(resolve(values.root ?? '.'), controller.signal);
     process.exit(0);
   }
   if (positionals[0] === 'explain' && positionals.length >= 2 && positionals.length <= 3) {
