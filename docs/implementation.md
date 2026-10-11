@@ -84,5 +84,5 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - [x] 从 Git bundle 与 patch 重建 8 个场景，验证输入树及 oracle 一致。
 - [x] 增加配对重复、明确统计分母、缺失用量及失败会话处理。
 - [x] 修复真实预检发现的跨文件 baseline 漏检，CLI/Vitest 回归先失败后通过。
-- [ ] 完成随机目录标识下的 32 个真实 Agent 会话并记录全部结果。
-- [ ] 完成本次变更的跨平台 CI。
+- [x] 完成随机目录标识下的 32 个真实 Agent 会话并记录全部结果：对照组 16/16 成功，Harness 15/16，一次保守退出；两组均无观测到的逃逸或误阻塞。Harness 总 token 减少 4.8%，总耗时增加 5.7%，不宣称全面改善。
+- [x] 完成本次变更的跨平台 CI：[9776ceb 验收](https://github.com/sunnylost/proofLane/actions/runs/38107881408)，Linux Node 22.13/24 与 macOS Node 24 各 47 项通过，Windows Node 24 为 46 项通过、1 项 POSIX SIGINT 跳过。

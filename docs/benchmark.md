@@ -88,3 +88,49 @@ node scripts/benchmark-agent.mjs /path/to/epub --verification-only --prepare-onl
 Vitest finding 的位置是测试文件；旧的 baseline 文件摘要无法捕获被测实现的变化。实现修复后回退到 HEAD，Git 与测试文件都不变，changed 验证跳过测试并错误返回 pass。扩展场景的冻结重放捕获了此问题；真实 CLI/Vitest 回归在修复前失败，修复后通过。
 
 现在 baseline 中存在 Vitest、Knip 或 React Doctor 历史问题时，changed 扩大到项目检查；在没有完整依赖摘要的情况下，接受额外检查成本。失败预检保存在 `artifacts/benchmark-p0-replay`，修复后的重放保存在 `artifacts/benchmark-p0-replay-fixed`。
+
+## 扩展试验结果：2026-10-11
+
+有效轮次：`artifacts/benchmark-p0-opaque`。8 场景 × 2 组 × 2 次，共 32 个实际 Codex 会话。模型为 `gpt-6.1-sol` / high，Codex CLI 0.160.0，Node v26.11.0，Oxlint 1.87.0，Vitest 5.0.3。源码仍为本文开头的 EPUB commit。冻结构建和脚本的哈希与实现提交 `9776ceb` 对应的当前文件核对一致；32 份结果均与原始 JSONL 用量及 oracle 产物逐项核对，52 个冻结文件哈希完整，原项目状态不变。
+
+**本轮没有证明 Harness 全面优于直接调用工具。** Harness 总 token 少 4.8%，但总耗时多 5.7%，任务成功率也略低。所有样本（含一次 incomplete 和约 119 秒的慢样本）均计入成本统计，没有剔除。
+
+| 指标 | Control | Harness |
+| --- | ---: | ---: |
+| 完整会话 / 计划会话 | 16/16 | 16/16 |
+| 正确完成验证任务 | 16/16（100%） | 15/16（93.75%） |
+| 缺陷被错误放行 | 0/12 | 0/12 |
+| 健康样本被误阻塞 | 0/4 | 0/4 |
+| Agent 保守退出（incomplete） | 0/16 | 1/16 |
+| 执行失败 / oracle 不完整 | 0 / 0 | 0 / 0 |
+| 禁止的文件修改 | 0 | 0 |
+| Input token | 1,657,444 | 1,578,230 |
+| Cached input（已包含在 input） | 1,214,976 | 1,231,488 |
+| Output token | 10,755 | 9,241 |
+| Input + output | 1,668,199 | 1,587,471 |
+| command_execution 事件 | 106 | 89 |
+| Agent 总耗时（秒） | 617.563 | 652.934 |
+
+任务成功要求 verdict 与独立 oracle 一致且无越界修改。删除 profile 模块的第二轮中，Control 判为 block，Harness 组 Agent 判为 incomplete；独立 oracle 确认模块缺失。该结果计为任务未完成，不是误放行。第一轮 Harness 组通过 explain 和源码检查确认同一缺陷后返回 block。两次不同选择保留了真实 Agent 的行为波动，不修改判分以消除差异。脚本因此按约定退出 1，`summary.complete=true` 表示试验完整，不是 32 个任务全部正确。
+
+耗时为模型调用的墙钟时间，包含服务等待与工具调用，不包含准备、克隆及独立 oracle 时间。健康重命名第二轮 Harness 用时 119.476 秒，对照为 49.966 秒；现有证据不能将全部差异归因于 Harness 的执行成本。
+
+| 每会话分布 | Control 最小 / 中位数 / P90 / 最大 | Harness 最小 / 中位数 / P90 / 最大 |
+| --- | --- | --- |
+| Input + output token | 68,328 / 114,233.5 / 133,010 / 134,675 | 66,446 / 90,131.5 / 141,054 / 165,192 |
+| Agent 秒数 | 31.201 / 35.841 / 49.966 / 50.665 | 26.965 / 34.409 / 44.423 / 119.476 |
+
+以下为每个场景的配对 token 差值（Harness − Control，负数表示 Harness 更少）；不将不完整任务排除出成本比较。
+
+| 场景 | 第 1 次 | 第 2 次 | 判定 |
+| --- | ---: | ---: | --- |
+| 健康 location 修改 | +9,153 | +37,922 | 四次均 pass |
+| 正整数 location size | −33,686 | +21,736 | 四次均 block |
+| Cache key 转义 | −58,888 | −36,657 | 四次均 block |
+| CFI / 搜索跨文件 | +20,097 | −1,442 | 四次均 block |
+| 正确的 profile 重命名 | −18,074 | +8,044 | 四次均 pass |
+| 删除被引用的 profile | +10,511 | −21,745 | 三次 block；Harness 第 2 次 incomplete |
+| WASM 依赖声明 | −28,698 | +20,682 | 四次均 block |
+| Baseline 修复后重现 | −2,401 | −7,282 | 四次均 block |
+
+16 对 token 差值的中位数为 −1,921.5，范围 −58,888 至 +37,922；耗时差值中位数为 −0.603 秒，范围 −17.884 至 +69.510 秒。8 个场景仅来自一个仓库，重复执行不等于新增独立工程任务。没有观测到逃逸不代表真实逃逸率为零；本轮也不能证明成功率有统计意义的差异。
