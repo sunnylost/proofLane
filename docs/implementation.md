@@ -94,7 +94,9 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - [x] 实际 Codex 正在等待 MCP 分析器时发送 SIGINT，确认工具已启动、客户端退出、分析器退出；已有 SDK E2E 继续覆盖协议取消后复用连接。
 - [x] 修复干净源码 npm pack 缺少 dist 的真实缺陷：增加 prepack 构建。独立目录 omit=dev 安装 tarball，删除打包源码后，通过 CLI bin 和 MCP 完成发现问题、取证、修复后通过。
 - [x] 统一最低/推荐/上界版本声明，低版本与预发布版本在启动前拒绝；真实最低/推荐版本测试和四类 baseline 升级拒绝/reset 验收通过。
-- [ ] 四个平台运行新增安装包验收；Linux Node 22.13/24 运行版本矩阵。
+- [x] 四组平台配置运行新增安装包验收；Linux Node 22.13/24 运行版本矩阵。[9f3e1a3 的六组 CI](https://github.com/sunnylost/proofLane/actions/runs/38110647145)全部通过，六份产物均已上传并核对。
+
+常规检查：Linux Node 22.13/24 与 macOS Node 24 各 48 项通过；Windows Node 24 为 47 项通过、1 项 POSIX SIGINT 跳过。四组均额外通过独立安装包 E2E，Windows 包验收用时约 54 秒。两组 Linux 版本矩阵各完成最低/推荐组 5 项检查及 4 项真实版本 baseline 升级检查。
 
 本地证据：`artifacts/package-red-entrypoint.log` 保留缺失入口的失败；`artifacts/package-green.log` 与 `artifacts/e2e/package-acceptance.json` 记录独立安装后的通过。`artifacts/e2e/compatibility/` 保存各版本报告和依赖锁。
 
