@@ -99,3 +99,5 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 本地证据：`artifacts/package-red-entrypoint.log` 保留缺失入口的失败；`artifacts/package-green.log` 与 `artifacts/e2e/package-acceptance.json` 记录独立安装后的通过。`artifacts/e2e/compatibility/` 保存各版本报告和依赖锁。
 
 真实 MCP 首轮被 Codex 非交互审批策略拦截，记录保留在 `artifacts/mcp-agent-p1`，没有计为通过。为已授权的三个工具配置临时精确预批准后，`artifacts/mcp-agent-p1-approved` 记录完整调用链和取消结果；全局客户端设置及原 EPUB 工作区保持不变。真实 Agent 取消验收限本机 POSIX；Windows 运行协议层取消与安装包 E2E，不冒充实际 Windows Codex 用户中断验收。
+
+首轮新增 CI 发现两项验收环境问题：npm 10.9.2 在新目录解析最低版本组合时抛出 `edgesOut` 异常，本地使用同版本重现；版本矩阵改用固定 npm 11.20.0 安装，仍使用矩阵指定的 Node 执行所有检查。Windows 在打包夹具内重复 npm ci 超过 90 秒；夹具改为复用 CI 已安装的构建工具，仍从无 dist 的源码构建 tarball，在独立目录真实 omit=dev 安装，并删除打包源码后运行全部 CLI/MCP 断言。

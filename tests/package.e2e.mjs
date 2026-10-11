@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, lstat, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -22,9 +22,8 @@ test('a clean source pack installs without dev dependencies and serves CLI and M
     return result;
   };
   for (const file of ['src', 'skills', 'docs', 'README.md', 'package.json', 'package-lock.json', 'tsconfig.json']) await cp(join(project, file), join(staging, file), { recursive: true });
-  let result = npm(staging, ['ci', '--ignore-scripts', '--no-audit', '--no-fund']);
-  assert.equal(result.status, 0, result.stderr);
-  result = npm(staging, ['pack', '--json', '--pack-destination', root]);
+  await symlink(join(project, 'node_modules'), join(staging, 'node_modules'), 'junction');
+  let result = npm(staging, ['pack', '--json', '--pack-destination', root]);
   await writeFile(join(artifacts, 'package-pack.json'), result.stdout);
   assert.equal(result.status, 0, result.stderr);
   const packed = JSON.parse(result.stdout)[0];

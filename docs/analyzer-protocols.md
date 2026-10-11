@@ -49,4 +49,6 @@ Knip 完整项目图扫描有明确的检查域，但不提供完整已检查文
 
 `npm run test:compatibility` 安装真实最低版本，复用现有分析器 E2E，对最低/推荐两组保存独立报告；再对四个分析器分别创建旧版本 baseline、切换真实新版本、确认拒绝复用且 baseline 内容不变，最后显式 reset 并再次验证。最低组的依赖 lock 与原始输出保存在 `artifacts/e2e/compatibility/`。正常的跨平台测试使用推荐版本，Linux Node 22.13/24 另跑版本矩阵。
 
+矩阵在独立目录生成安装清单，使用固定 npm 11.20.0 安装依赖，分析器仍由当前矩阵的 Node 执行。npm 10.9.2 在新目录解析该组合的 peer dependency 树时出现 `edgesOut` 空对象异常，已在 CI 和本地 Node 22.13 重现；不通过忽略 peer 校验绕过。安装器实际版本和解析后的 lock 都随产物保存，不修改用户的全局 npm。
+
 覆盖范围、执行状态和 gate 分开保留。JSON、退出码或结果统计矛盾时返回 incomplete；一个分析器失败不会丢失其他分析器的诊断。

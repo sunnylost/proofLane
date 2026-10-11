@@ -9,6 +9,8 @@ const project = fileURLToPath(new URL('../', import.meta.url));
 const output = join(project, 'artifacts/e2e/compatibility');
 const minimum = join(project, 'artifacts/compatibility/minimum');
 await mkdir(output, { recursive: true });
+await mkdir(minimum, { recursive: true });
+await writeFile(join(minimum, 'package.json'), JSON.stringify({ private: true, dependencies: Object.fromEntries(Object.entries(analyzerVersions).map(([name, range]) => [name, range.minimum])) }, null, 2));
 assert.ok(process.env.npm_execpath, 'Run via npm run test:compatibility');
 async function execute(label, args, env = process.env) {
   const child = spawn(process.execPath, args, { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -18,10 +20,13 @@ async function execute(label, args, env = process.env) {
   const code = await new Promise((resolve, reject) => { child.on('error', reject); child.on('close', resolve); });
   await writeFile(join(output, `${label}.log`), stdout + stderr);
   assert.equal(code, 0, `${label} failed; see artifacts/e2e/compatibility/${label}.log`);
+  return stdout;
 }
-await execute('install-minimum', [process.env.npm_execpath, 'install', '--prefix', minimum, '--ignore-scripts', '--save-exact', '--no-audit', '--no-fund', ...Object.entries(analyzerVersions).map(([name, range]) => `${name}@${range.minimum}`)]);
+const installer = [process.env.npm_execpath, 'exec', '--yes', '--package=npm@11.20.0', '--', 'npm'];
+assert.equal((await execute('installer-version', [...installer, '--version'])).trim(), '11.20.0');
+await execute('install-minimum', [...installer, 'install', '--prefix', minimum, '--ignore-scripts', '--no-audit', '--no-fund']);
 await writeFile(join(output, 'minimum-package-lock.json'), await readFile(join(minimum, 'package-lock.json')));
-const summary = { node: process.version, platform: process.platform, versions: analyzerVersions, completed: [] };
+const summary = { node: process.version, platform: process.platform, installer: 'npm 11.20.0', versions: analyzerVersions, completed: [] };
 await writeFile(join(output, 'summary.json'), JSON.stringify(summary, null, 2));
 for (const [tier, root] of [['minimum', minimum], ['recommended', project]]) {
   for (const [name, range] of Object.entries(analyzerVersions)) assert.equal(JSON.parse(await readFile(join(root, 'node_modules', name, 'package.json'), 'utf8')).version, range[tier]);
