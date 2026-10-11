@@ -21,6 +21,7 @@ test('real Vitest fails on a broken implementation, related verification passes 
   const failed = await verify(root, 'vitest-real-failure', 'full');
   assert.equal(failed.outcome, 'block');
   assert.equal(failed.findings[0].source, 'vitest');
+  assert.match(failed.findings[0].message, /expected -1 to be 5/);
   await put(root, 'src/math.ts', 'export const add = (a,b) => a+b;');
   assert.equal((await verify(root, 'vitest-related-fixed')).outcome, 'pass');
   await put(root, 'src/math.test.ts', "import {test,expect} from 'vitest'; test.skip('adds numbers',()=>expect(1).toBe(2));");

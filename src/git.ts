@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, realpath } from 'node:fs/promises';
-import { join } from 'node:path';
+import { lstat, realpath, readlink, stat } from 'node:fs/promises';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { run } from './process.js';
 
 async function git(root: string, args: string[], signal?: AbortSignal, allowFailure = false): Promise<string> {
@@ -17,17 +17,31 @@ function splitPaths(output: string): string[] {
 }
 
 export function internalFile(file: string): boolean {
-  return file.startsWith('.prooflane/runs/') || file === '.prooflane/baseline.lock' || file.startsWith('.prooflane/.tmp-');
+  return file.startsWith('.prooflane/runs/') || file === '.prooflane/baseline.lock' || file.startsWith('.prooflane/observations.') || file.startsWith('.prooflane/.tmp-');
 }
 
 export async function visibleFiles(root: string, signal?: AbortSignal): Promise<string[]> {
-  return [...new Set(splitPaths(await git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], signal)))].filter((file) => !internalFile(file)).sort();
+  const paths = [...new Set(splitPaths(await git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], signal)))].filter((file) => !internalFile(file)).sort();
+  const files: string[] = [];
+  for (const file of paths) {
+    try {
+      if ((await lstat(join(root, file))).isDirectory()) {
+        const directory = await realpath(join(root, file));
+        if (await repositoryRoot(directory, signal) !== directory) throw new Error(`Submodule is not initialized: ${file}`);
+        for (const child of await visibleFiles(directory, signal)) files.push(`${file}/${child}`);
+      } else files.push(file);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') files.push(file);
+      else throw error;
+    }
+  }
+  return files.sort();
 }
 
 export function sourceFile(file: string): boolean { return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file); }
 
 export async function repositoryRoot(root: string, signal?: AbortSignal): Promise<string> {
-  return realpath((await git(root, ['rev-parse', '--show-toplevel'], signal)).trimEnd());
+  return realpath((await git(root, ['rev-parse', '--show-toplevel'], signal)).replace(/\n$/, ''));
 }
 
 export async function changedFiles(root: string, base: string | undefined, signal?: AbortSignal): Promise<{ files: string[]; deletedOrRenamed: boolean; base?: string }> {
@@ -43,6 +57,8 @@ export async function changedFiles(root: string, base: string | undefined, signa
     const oldPath = changes[i++];
     if (!oldPath) throw new Error('Invalid Git diff output');
     files.add(oldPath);
+    try { if ((await lstat(join(root, oldPath))).isDirectory()) deletedOrRenamed = true; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
     if (status.startsWith('R') || status.startsWith('C')) {
       const newPath = changes[i++];
       if (!newPath) throw new Error('Invalid Git rename output');
@@ -57,24 +73,37 @@ export async function changedFiles(root: string, base: string | undefined, signa
 export async function snapshot(root: string, signal?: AbortSignal): Promise<string> {
   const hash = createHash('sha256');
   hash.update(await git(root, ['rev-parse', '--verify', 'HEAD'], signal, true));
-  hash.update(await git(root, ['ls-files', '--stage', '-z'], signal));
+  const index = await git(root, ['ls-files', '--stage', '-z'], signal);
+  hash.update(index);
+  if (splitPaths(index).some((entry) => entry.startsWith('160000 '))) hash.update(await git(root, ['submodule', 'status', '--recursive'], signal));
   const files = await visibleFiles(root, signal);
-  for (const file of files) {
-    if (signal?.aborted) throw new Error('Verification cancelled');
-    hash.update(`${file}\0`);
-    try {
-      const path = join(root, file);
-      const stat = await lstat(path);
-      hash.update(`${stat.mode}\0`);
-      if (stat.isSymbolicLink()) throw new Error(`Symbolic links are not supported in the verification scope: ${file}`);
-      if (!stat.isFile()) throw new Error(`Submodules and non-regular files are not supported: ${file}`);
-      const fileHash = createHash('sha256');
-      for await (const chunk of createReadStream(path)) fileHash.update(chunk);
-      hash.update(fileHash.digest());
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') hash.update('deleted\0');
-      else throw error;
+  const digests: string[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const position = next++;
+      const file = files[position]!;
+      if (signal?.aborted) throw new Error('Verification cancelled');
+      const digest = createHash('sha256').update(`${file}\0`);
+      try {
+        const path = join(root, file);
+        const metadata = await lstat(path);
+        digest.update(`${metadata.mode}\0`);
+        if (metadata.isSymbolicLink()) {
+          const target = await realpath(path);
+          const within = relative(root, target);
+          if (within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within) || !(await stat(target)).isFile()) throw new Error(`Source symlink must point to a file inside the repository: ${file}`);
+          digest.update(await readlink(path));
+        } else if (!metadata.isFile()) throw new Error(`Non-regular file is not supported: ${file}`);
+        for await (const chunk of createReadStream(path)) digest.update(chunk);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') digest.update('deleted\0');
+        else throw error;
+      }
+      digests[position] = digest.digest('hex');
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker));
+  for (const digest of digests) hash.update(digest);
   return hash.digest('hex');
 }

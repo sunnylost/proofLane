@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { readFile, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { run } from './process.js';
 import type { AnalyzerResult, Finding } from './types.js';
 import { sourceFile, visibleFiles } from './git.js';
 import { evidence } from './evidence.js';
+import { localTool } from './tools.js';
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Oxlint JSON object');
@@ -37,19 +37,16 @@ function diagnostic(value: unknown, root: string): Finding {
   };
 }
 
-export async function analyze(root: string, paths: string[], reason: string, timeoutMs: number, signal?: AbortSignal): Promise<{ analyzer: AnalyzerResult; findings: Finding[]; error?: string }> {
+export async function analyze(root: string, paths: string[], reason: string, timeoutMs: number, signal?: AbortSignal, toolRoot = root): Promise<{ analyzer: AnalyzerResult; findings: Finding[]; error?: string }> {
   const started = performance.now();
   let version: string | undefined;
   let findings: Finding[] = [];
   let raw: AnalyzerResult['evidence'];
   try {
-    const packageFile = await realpath(join(root, 'node_modules/oxlint/package.json'));
-    const manifest = object(JSON.parse(await readFile(packageFile, 'utf8')));
-    if (typeof manifest.version !== 'string' || !manifest.version.startsWith('1.')) throw new Error('Unsupported Oxlint version; expected 1.x');
-    version = manifest.version;
-    const bin = typeof manifest.bin === 'string' ? manifest.bin : object(manifest.bin).oxlint;
-    if (typeof bin !== 'string') throw new Error('Oxlint package has no CLI entrypoint');
-    const result = await run(process.execPath, [resolve(dirname(packageFile), bin), '--format', 'json', '--', ...paths], root, timeoutMs, signal);
+    const tool = await localTool(root, 'oxlint', toolRoot);
+    if (!tool.version.startsWith('1.')) throw new Error('Unsupported Oxlint version; expected 1.x');
+    version = tool.version;
+    const result = await run(process.execPath, [tool.bin, '--format', 'json', '--', ...paths], root, timeoutMs, signal);
     raw = evidence(result);
     if (result.failure) throw new Error(result.failure);
     let report: Record<string, unknown>;
@@ -61,7 +58,7 @@ export async function analyze(root: string, paths: string[], reason: string, tim
     const hasErrors = findings.some((finding) => finding.severity === 'error');
     if ((result.code !== 0 && result.code !== 1) || (result.code === 1 && !hasErrors) || (result.code === 0 && hasErrors)) throw new Error(`Oxlint exit code ${result.code} contradicts its diagnostics`);
     if (report.number_of_files === 0) throw new Error('Oxlint checked zero files; verify paths and ignore configuration');
-    const listing = await run(process.execPath, [resolve(dirname(packageFile), bin), '--debug', 'files', '--', ...paths], root, Math.max(1, timeoutMs - (performance.now() - started)), signal);
+    const listing = await run(process.execPath, [tool.bin, '--debug', 'files', '--', ...paths], root, Math.max(1, timeoutMs - (performance.now() - started)), signal);
     const candidates = (await visibleFiles(root, signal)).filter(sourceFile);
     const listed = listing.stdout.split(/\r?\n/).filter(Boolean).map((file) => file.replace(/^\.\//, '').split(sep).join('/'));
     const visible = new Set(await visibleFiles(root, signal));

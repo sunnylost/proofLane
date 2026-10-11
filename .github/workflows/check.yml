@@ -10,11 +10,15 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       matrix:
-        node: ['22.13.0', '24']
+        include:
+          - { os: ubuntu-latest, node: '22.13.0' }
+          - { os: ubuntu-latest, node: '24' }
+          - { os: windows-latest, node: '24' }
+          - { os: macos-latest, node: '24' }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +30,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cli-e2e-node-${{ matrix.node }}
+          name: cli-e2e-${{ matrix.os }}-node-${{ matrix.node }}
           path: artifacts/e2e/
           if-no-files-found: ignore

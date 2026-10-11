@@ -19,11 +19,17 @@ export function run(command: string, args: string[], cwd: string, timeoutMs: num
     let bytes = 0;
     let failure: string | undefined;
     let finished = false;
+    let stopping = false;
     const stop = (reason: string) => {
       failure ??= reason;
+      if (stopping) return;
+      stopping = true;
       if (child.pid) {
         try {
-          if (process.platform === 'win32') child.kill('SIGKILL');
+          if (process.platform === 'win32') {
+            const killer = spawn('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
+            killer.on('error', () => child.kill('SIGKILL'));
+          }
           else process.kill(-child.pid, 'SIGKILL');
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ESRCH') failure += `; could not terminate process: ${String(error)}`;

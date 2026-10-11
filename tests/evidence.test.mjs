@@ -31,3 +31,12 @@ test('evidence directory symlink cannot write outside repository', async (t) => 
   assert.equal(result.outcome, 'incomplete');
   assert.ok(!(await readdir(outside)).some((name) => /^[a-f0-9-]{36}\.json$/.test(name)));
 });
+
+test('failed analyzer evidence is available even when it produced no finding', async (t) => {
+  const root = await repository(t, { tool: "console.error('Missing optional parser plugin'); process.exitCode=2" });
+  const result = await verify(root, 'failed-analyzer-evidence', 'full');
+  assert.equal(result.outcome, 'incomplete');
+  const expanded = spawnSync(process.execPath, [cli, 'explain', result.runId, 'oxlint', '--root', root, '--json'], { encoding: 'utf8' });
+  assert.equal(expanded.status, 0);
+  assert.match(JSON.parse(expanded.stdout).evidence.stderr, /Missing optional parser plugin/);
+});

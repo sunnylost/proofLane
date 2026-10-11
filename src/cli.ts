@@ -10,7 +10,7 @@ const help = `ProofLane — verify the repository with its configured local anal
 
 Usage: prooflane verify <changed|full> [options]
        prooflane baseline <create|update|reset> [options]
-       prooflane explain <runId> [findingId] [options]
+       prooflane explain <runId> [findingId|analyzer] [options]
        prooflane mcp --root <repository>
   --root <path>          Repository or a directory inside it (default: cwd)
   --base <revision>      Compare working tree with this commit (changed only)
@@ -23,9 +23,10 @@ Configure analyzers in prooflane.json. Pass covers only the selected checks.`;
 
 function compact(result: VerificationResult): string {
   const lines = [`${result.outcome.toUpperCase()} ${result.profile} (${result.scope}) — ${result.findings.length} findings`];
+  if (result.runId) lines.push(`Run ${result.runId}; details: prooflane explain ${result.runId} [findingId|analyzer]`);
   for (const analyzer of result.analyzers) lines.push(`${analyzer.name} ${analyzer.status}${analyzer.filesChecked === undefined ? '' : `: ${analyzer.filesChecked} files`} — ${analyzer.reason}`);
   for (const finding of result.findings.slice(0, 20)) {
-    lines.push(`${finding.severity.toUpperCase()} ${finding.rule} ${JSON.stringify(finding.location.file)}:${finding.location.line ?? '?'}:${finding.location.column ?? '?'} ${finding.message.replace(/\s+/g, ' ').slice(0, 300)}`);
+    lines.push(`${finding.severity.toUpperCase()} [${finding.id}] ${finding.rule} ${JSON.stringify(finding.location.file)}:${finding.location.line ?? '?'}:${finding.location.column ?? '?'} ${finding.message.replace(/\s+/g, ' ').slice(0, 300)}`);
   }
   if (result.findings.length > 20) lines.push(`${result.findings.length - 20} more findings; use --json for all results`);
   for (const error of result.errors) lines.push(`INCOMPLETE ${error.replace(/\s+/g, ' ')}`);

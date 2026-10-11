@@ -22,9 +22,9 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
     const root = await repositoryRoot(request.root, request.signal);
     result.root = root;
     if (request.baselineAction) unlock = await lockBaseline(root);
+    result.snapshot = await snapshot(root, request.signal);
     const config = await readConfig(root);
     const baseline = request.baselineAction === 'reset' ? undefined : await loadBaseline(root);
-    result.snapshot = await snapshot(root, request.signal);
     result.configuration = await configurationDigest(root, request.signal);
     let paths = ['.'];
     let reason = 'Full project lint requested';
@@ -55,8 +55,8 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
           continue;
         }
         reports[index] = name === 'oxlint'
-          ? await analyze(root, paths, reason, request.timeoutMs, request.signal)
-          : await analyzeTool(name, root, name === 'vitest' && result.scope === 'files' ? paths.map((file) => file.slice(2)) : undefined, request.timeoutMs, request.signal);
+          ? await analyze(root, paths, reason, request.timeoutMs, request.signal, request.root)
+          : await analyzeTool(name, root, name === 'vitest' && result.scope === 'files' ? paths.map((file) => file.slice(2)) : undefined, request.timeoutMs, request.signal, request.root);
       }
     };
     await Promise.all(Array.from({ length: Math.min(config.concurrency, config.analyzers.length) }, worker));
@@ -65,8 +65,9 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
       result.findings.push(...report.findings);
       if (report.error) result.errors.push(report.error);
     }
-    if (await snapshot(root, request.signal) !== result.snapshot) result.errors.push('Repository changed during verification; rerun against a stable working tree');
     await fingerprints(root, result.findings);
+    if (await snapshot(root, request.signal) !== result.snapshot) result.errors.push('Repository changed during verification; rerun against a stable working tree');
+    if (await configurationDigest(root, request.signal) !== result.configuration) result.errors.push('Analyzer configuration changed during verification');
     await compareBaseline(root, result, baseline, request.baselineAction);
     result.outcome = result.errors.length ? 'incomplete' : result.findings.some((finding) => finding.status === 'regression' || (finding.severity === 'error' && finding.status !== 'existing')) ? 'block' : 'pass';
   } catch (error) {

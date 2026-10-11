@@ -23,9 +23,9 @@ export async function put(root, file, content) {
   await writeFile(join(root, file), content);
 }
 
-export async function repository(t, { tool = 'real', commit = true } = {}) {
+export async function repository(t, { tool = 'real', commit = true, cleanup = true } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'prooflane-e2e-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  if (cleanup) t.after(() => rm(root, { recursive: true, force: true }));
   git(root, 'init', '-b', 'main');
   await put(root, '.gitignore', 'node_modules/\nignored.ts\n');
   await put(root, 'package.json', '{"private":true}');
@@ -47,8 +47,9 @@ export async function repository(t, { tool = 'real', commit = true } = {}) {
 }
 
 export async function verify(root, label, profile = 'changed', flags = []) {
+  const started = performance.now();
   const run = spawnSync(process.execPath, [cli, 'verify', profile, '--root', root, '--json', ...flags], { encoding: 'utf8', timeout: 15_000, maxBuffer: 20 * 1024 * 1024 });
-  await writeFile(join(artifacts, `${label}.json`), JSON.stringify({ exitCode: run.status, stdout: run.stdout, stderr: run.stderr, error: run.error?.message }, null, 2));
+  await writeFile(join(artifacts, `${label}.json`), JSON.stringify({ exitCode: run.status, durationMs: Math.round(performance.now() - started), node: process.version, platform: process.platform, stdout: run.stdout, stderr: run.stderr, error: run.error?.message }, null, 2));
   assert.equal(run.error, undefined);
   assert.equal(run.stderr, '');
   const result = JSON.parse(run.stdout);

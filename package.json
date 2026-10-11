@@ -18,7 +18,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings src tests scripts",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run build && node --test --test-timeout=30000 tests/*.test.mjs",
     "check": "npm run typecheck && npm run lint && npm test",
     "verify:project": "npm run build && node scripts/verify-project.mjs"
   },

@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
 import { run } from './process.js';
 import { evidence } from './evidence.js';
 import { readJson } from './storage.js';
 import type { AnalyzerName, AnalyzerResult, Finding } from './types.js';
+import { localTool } from './tools.js';
 
 const assertion = z.object({ fullName: z.string(), status: z.string(), failureMessages: z.array(z.string()), location: z.object({ line: z.number().int().positive(), column: z.number().int().positive() }).optional() });
 const vitestReport = z.object({ success: z.boolean(), numPassedTests: z.number().int().nonnegative(), numFailedTests: z.number().int().nonnegative(), testResults: z.array(z.object({ name: z.string(), status: z.string(), message: z.string(), assertionResults: z.array(assertion) })) });
@@ -25,24 +26,21 @@ function finding(root: string, source: AnalyzerName, rule: string, path: string,
   return { id: createHash('sha256').update(JSON.stringify([source, rule, location, message])).digest('hex').slice(0, 20), source, category: source === 'vitest' ? 'test' : source === 'knip' ? 'dead-code' : 'react', rule, message, severity, confidence: 'medium', status: 'unclassified', location, entity };
 }
 
-export async function analyzeTool(name: Exclude<AnalyzerName, 'oxlint'>, root: string, related: string[] | undefined, timeoutMs: number, signal?: AbortSignal): Promise<{ analyzer: AnalyzerResult; findings: Finding[]; error?: string }> {
+export async function analyzeTool(name: Exclude<AnalyzerName, 'oxlint'>, root: string, related: string[] | undefined, timeoutMs: number, signal?: AbortSignal, toolRoot = root): Promise<{ analyzer: AnalyzerResult; findings: Finding[]; error?: string }> {
   const started = performance.now();
   let version: string | undefined;
   let raw: AnalyzerResult['evidence'];
   const findings: Finding[] = [];
   let temporary: string | undefined;
   try {
-    const path = await realpath(join(root, 'node_modules', name, 'package.json'));
-    const manifest = z.object({ version: z.string(), bin: z.union([z.string(), z.record(z.string(), z.string())]) }).parse(JSON.parse(await readFile(path, 'utf8')));
-    version = manifest.version;
+    const tool = await localTool(root, name, toolRoot);
+    version = tool.version;
     const supported = name === 'vitest' ? version.startsWith('5.') : name === 'knip' ? version.startsWith('6.') : version.startsWith('0.9.');
     if (!supported) throw new Error(`Unsupported ${name} version ${version}`);
-    const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin[name];
-    if (!bin) throw new Error(`No ${name} executable in local package`);
     const execute = async (args: string[]) => {
       const remaining = timeoutMs - (performance.now() - started);
       if (remaining <= 0) throw new Error(`${name} timed out`);
-      const result = await run(process.execPath, [resolve(dirname(path), bin), ...args], root, remaining, signal);
+      const result = await run(process.execPath, [tool.bin, ...args], root, remaining, signal);
       raw = evidence(result);
       if (result.failure) throw new Error(result.failure);
       if (result.code !== 0 && result.code !== 1) throw new Error(`${name} execution failed with exit ${result.code}`);
@@ -74,7 +72,10 @@ export async function analyzeTool(name: Exclude<AnalyzerName, 'oxlint'>, root: s
           checked.push(file);
           const entity = JSON.stringify([file, item.fullName]);
           entities.push(entity);
-          if (item.status === 'failed') findings.push(finding(root, name, 'vitest/test-failure', file, `Test failed: ${item.fullName}`, 'error', item.location?.line, item.location?.column, entity));
+          if (item.status === 'failed') {
+            const detail = item.failureMessages[0]?.split(/\r?\n/)[0]?.slice(0, 300);
+            findings.push(finding(root, name, 'vitest/test-failure', file, `Test failed: ${item.fullName}${detail ? ` — ${detail}` : ''}`, 'error', item.location?.line, item.location?.column, entity));
+          }
         }
         if (suite.status === 'failed' && !suite.assertionResults.some((a) => a.status === 'failed')) throw new Error(`Vitest suite could not execute: ${file}; inspect evidence`);
       }

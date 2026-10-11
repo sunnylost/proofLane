@@ -11,7 +11,7 @@ test('changed verifies staged, unstaged and untracked files; fix passes; full st
   await put(root, 'src/main.ts', 'debugger;\n');
   await put(root, 'staged.ts', 'debugger;\n');
   git(root, 'add', 'staged.ts');
-  const special = '- odd name 中文\nfile.ts';
+  const special = process.platform === 'win32' ? '- odd name 中文.ts' : '- odd name 中文\nfile.ts';
   await put(root, special, 'debugger;\n');
   await put(root, 'ignored.ts', 'debugger;\n');
   const blocked = await verify(root, 'changed-errors');
@@ -100,13 +100,14 @@ for (const [name, tool] of [
   });
 }
 
-test('timeout terminates descendant processes on POSIX', { skip: process.platform === 'win32' }, async (t) => {
+test('timeout terminates descendant processes', async (t) => {
   const marker = join(await mkdtemp(join(tmpdir(), 'prooflane-process-')), 'escaped');
   t.after(() => rm(dirname(marker), { recursive: true, force: true }));
-  const tool = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(`setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'escaped'),1000)`)}],{stdio:'ignore'}); setInterval(()=>{},1000)`;
+  const tool = `const child = require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(`setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'escaped'),1500)`)}],{stdio:'ignore'}); require('node:fs').writeFileSync(${JSON.stringify(`${marker}.pid`)},String(child.pid)); setInterval(()=>{},1000)`;
   const root = await repository(t, { tool });
-  assert.equal((await verify(root, 'descendant-timeout', 'full', ['--timeout-ms', '300'])).outcome, 'incomplete');
-  await new Promise((done) => setTimeout(done, 1200));
+  assert.equal((await verify(root, 'descendant-timeout', 'full', ['--timeout-ms', '600'])).outcome, 'incomplete');
+  assert.match(await readFile(`${marker}.pid`, 'utf8'), /^\d+$/);
+  await new Promise((done) => setTimeout(done, 1600));
   await assert.rejects(readFile(marker), { code: 'ENOENT' });
 });
 

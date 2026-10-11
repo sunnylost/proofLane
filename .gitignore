@@ -5,3 +5,4 @@ artifacts/
 .prooflane/runs/
 .prooflane/baseline.lock
 .prooflane/.tmp-*
+.prooflane/observations.*

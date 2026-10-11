@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import { repository, put, verify, cli, artifacts, git } from './helpers.mjs';
@@ -79,4 +79,38 @@ test('baseline writer lock rejects concurrent update without altering the accept
   await put(root, '.prooflane/baseline.lock', 'another writer');
   assert.equal((await baseline(root, 'update', 'locked-baseline')).code, 2);
   assert.equal(await readFile(path, 'utf8'), before);
+});
+
+test('deleting a previously diagnosed file is resolved only by complete project coverage', async (t) => {
+  const root = await repository(t);
+  assert.equal((await baseline(root, 'create', 'deleted-file-baseline')).code, 0);
+  await rm(join(root, 'src/history.ts'));
+  const result = await verify(root, 'deleted-file-resolved');
+  assert.equal(result.outcome, 'pass');
+  assert.equal(result.resolved.length, 1);
+});
+
+test('ordinary verification records confirmed fixes without accepting new findings', async (t) => {
+  const root = await repository(t);
+  assert.equal((await baseline(root, 'create', 'observed-fix-baseline')).code, 0);
+  const accepted = await readFile(join(root, '.prooflane/baseline.json'), 'utf8');
+  await put(root, 'src/history.ts', 'export {};\n');
+  const fixed = await verify(root, 'observed-fixed', 'full');
+  assert.equal(fixed.resolved.length, 1);
+  assert.equal(await readFile(join(root, '.prooflane/baseline.json'), 'utf8'), accepted);
+  await put(root, 'src/history.ts', 'debugger;\n');
+  const returned = await verify(root, 'observed-regression');
+  assert.equal(returned.outcome, 'block');
+  assert.equal(returned.findings[0].status, 'regression');
+});
+
+test('ignored root analyzer configuration still invalidates the baseline', async (t) => {
+  const root = await repository(t);
+  await put(root, '.gitignore', 'node_modules/\n.oxlintrc.json\n');
+  git(root, 'rm', '--cached', '.oxlintrc.json');
+  assert.equal((await baseline(root, 'create', 'ignored-config-baseline')).code, 0);
+  await put(root, '.oxlintrc.json', '{"rules":{"no-debugger":"off"}}');
+  const result = await verify(root, 'ignored-config-changed', 'full');
+  assert.equal(result.outcome, 'incomplete');
+  assert.match(result.errors.join(' '), /incompatible/);
 });

@@ -44,10 +44,10 @@ export async function explain(root: string, runId: string, findingId?: string): 
   const value = await readJson(join(await runsDirectory(root), `${runId}.json`));
   if (!value || typeof value !== 'object' || !('schemaVersion' in value) || value.schemaVersion !== 1 || !('runId' in value) || value.runId !== runId || !('findings' in value) || !Array.isArray(value.findings) || !('analyzers' in value) || !Array.isArray(value.analyzers)) throw new Error('Invalid evidence record');
   const result = value as VerificationResult;
-  if (!findingId) return { runId, outcome: result.outcome, errors: result.errors, findings: result.findings.slice(0, 20), totalFindings: result.findings.length, analyzers: result.analyzers.map(({ evidence: raw, ...analyzer }) => ({ ...analyzer, evidenceAvailable: Boolean(raw) })) };
+  if (!findingId) return { runId, outcome: result.outcome, errors: result.errors, findings: result.findings.slice(0, 20), totalFindings: result.findings.length, analyzers: result.analyzers.map((analyzer) => ({ name: analyzer.name, status: analyzer.status, reason: analyzer.reason, version: analyzer.version, filesChecked: analyzer.filesChecked, coverageComplete: analyzer.coverage?.complete, evidenceAvailable: Boolean(analyzer.evidence) })) };
   const finding = result.findings.find((item) => item.id === findingId);
-  if (!finding) throw new Error('Finding does not exist in this run');
-  const analyzer = result.analyzers.find((item) => item.name === finding.source);
+  const analyzer = result.analyzers.find((item) => item.name === (finding?.source ?? findingId));
+  if (!finding && !analyzer) throw new Error('Finding or analyzer does not exist in this run');
   const raw = analyzer?.evidence;
   return { runId, finding, analyzer: analyzer?.name, version: analyzer?.version, evidence: raw ? { ...raw, stdout: raw.stdout.slice(0, 8000), stderr: raw.stderr.slice(0, 2000), truncated: raw.truncated || raw.stdout.length > 8000 || raw.stderr.length > 2000 } : undefined };
 }

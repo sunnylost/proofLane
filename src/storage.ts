@@ -11,6 +11,7 @@ export async function stateDirectory(root: string): Promise<string> {
 }
 
 export async function readJson(path: string, maxBytes = 16 * 1024 * 1024): Promise<unknown> {
+  if ((await lstat(path)).isSymbolicLink()) throw new Error('ProofLane JSON input must not be a symbolic link');
   const handle = await open(path, constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW));
   try {
     const stat = await handle.stat();
