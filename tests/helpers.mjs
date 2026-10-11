@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const project = fileURLToPath(new URL('../', import.meta.url));
 export const cli = join(project, 'dist/cli.js');
-export const artifacts = join(project, 'artifacts/e2e');
+export const artifacts = resolve(process.env.PROOFLANE_ARTIFACTS ?? join(project, 'artifacts/e2e'));
 await mkdir(artifacts, { recursive: true });
 
 export function git(root, ...args) {

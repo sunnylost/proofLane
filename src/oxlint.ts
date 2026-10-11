@@ -44,7 +44,6 @@ export async function analyze(root: string, paths: string[], reason: string, tim
   let raw: AnalyzerResult['evidence'];
   try {
     const tool = await localTool(root, 'oxlint', toolRoot);
-    if (!tool.version.startsWith('1.')) throw new Error('Unsupported Oxlint version; expected 1.x');
     version = tool.version;
     const result = await run(process.execPath, [tool.bin, '--format', 'json', '--', ...paths], root, timeoutMs, signal);
     raw = evidence(result);

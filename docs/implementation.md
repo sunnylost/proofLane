@@ -86,3 +86,16 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - [x] 修复真实预检发现的跨文件 baseline 漏检，CLI/Vitest 回归先失败后通过。
 - [x] 完成随机目录标识下的 32 个真实 Agent 会话并记录全部结果：对照组 16/16 成功，Harness 15/16，一次保守退出；两组均无观测到的逃逸或误阻塞。Harness 总 token 减少 4.8%，总耗时增加 5.7%，不宣称全面改善。
 - [x] 完成本次变更的跨平台 CI：[9776ceb 验收](https://github.com/sunnylost/proofLane/actions/runs/38107881408)，Linux Node 22.13/24 与 macOS Node 24 各 47 项通过，Windows Node 24 为 46 项通过、1 项 POSIX SIGINT 跳过。
+
+## P1：真实接入、安装包与版本矩阵
+
+- [x] 提供 Codex / 通用 stdio MCP 配置和随包交付的薄层 ProofLane Skill。
+- [x] 实际 Codex CLI 0.160.0 / gpt-6.1-sol 通过 MCP 完成检查、explain、源码修复、局部复查和全量验收；独立 oracle 通过，只有目标源码变化。
+- [x] 实际 Codex 正在等待 MCP 分析器时发送 SIGINT，确认工具已启动、客户端退出、分析器退出；已有 SDK E2E 继续覆盖协议取消后复用连接。
+- [x] 修复干净源码 npm pack 缺少 dist 的真实缺陷：增加 prepack 构建。独立目录 omit=dev 安装 tarball，删除打包源码后，通过 CLI bin 和 MCP 完成发现问题、取证、修复后通过。
+- [x] 统一最低/推荐/上界版本声明，低版本与预发布版本在启动前拒绝；真实最低/推荐版本测试和四类 baseline 升级拒绝/reset 验收通过。
+- [ ] 四个平台运行新增安装包验收；Linux Node 22.13/24 运行版本矩阵。
+
+本地证据：`artifacts/package-red-entrypoint.log` 保留缺失入口的失败；`artifacts/package-green.log` 与 `artifacts/e2e/package-acceptance.json` 记录独立安装后的通过。`artifacts/e2e/compatibility/` 保存各版本报告和依赖锁。
+
+真实 MCP 首轮被 Codex 非交互审批策略拦截，记录保留在 `artifacts/mcp-agent-p1`，没有计为通过。为已授权的三个工具配置临时精确预批准后，`artifacts/mcp-agent-p1-approved` 记录完整调用链和取消结果；全局客户端设置及原 EPUB 工作区保持不变。真实 Agent 取消验收限本机 POSIX；Windows 运行协议层取消与安装包 E2E，不冒充实际 Windows Codex 用户中断验收。

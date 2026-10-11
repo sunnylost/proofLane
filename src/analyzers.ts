@@ -35,8 +35,6 @@ export async function analyzeTool(name: Exclude<AnalyzerName, 'oxlint'>, root: s
   try {
     const tool = await localTool(root, name, toolRoot);
     version = tool.version;
-    const supported = name === 'vitest' ? version.startsWith('5.') : name === 'knip' ? version.startsWith('6.') : version.startsWith('0.9.');
-    if (!supported) throw new Error(`Unsupported ${name} version ${version}`);
     const execute = async (args: string[]) => {
       const remaining = timeoutMs - (performance.now() - started);
       if (remaining <= 0) throw new Error(`${name} timed out`);

@@ -44,9 +44,9 @@ node dist/cli.js verify full --root /path/to/repository
 | 分析器 | 已验收版本 | changed 策略 |
 | --- | --- | --- |
 | Oxlint | 1.74.0 / 1.87.0 | 变更文件，结构或配置变化时全量 |
-| Vitest | 5.0.3 | 原生 related；没有执行测试时回退完整 suite |
-| Knip | 6.41.0 | full 或结构/配置变化时检查项目图 |
-| React Doctor | 0.9.17 | 有相关源码变化时检查完整项目 |
+| Vitest | 5.0.0 / 5.0.3 | 原生 related；没有执行测试时回退完整 suite |
+| Knip | 6.0.0 / 6.41.0 | full 或结构/配置变化时检查项目图 |
+| React Doctor | 0.9.0 / 0.9.17 | 有相关源码变化时检查完整项目 |
 
 Vitest 强制非 watch、不更新 snapshot、不允许 only，也不将零测试算作成功。已有 Playwright 项目引入 Vitest 时，需要显式区分两者的测试文件。React Doctor 关闭远程评分、遥测与供应链联网扫描；本地规则仍受其项目配置控制。
 
@@ -82,10 +82,17 @@ node dist/cli.js mcp --root /path/to/repository
 
 stdio 服务提供 `check_changes`、`check_project`、`explain`。项目根目录在启动时固定；工具参数不允许切换到任意目录。验证响应最多展示 20 条 finding，受 32 KiB 输出预算约束，保留总数和截断标记。失败分析器即使没有 finding 也可以通过 explain 查询证据。
 
+安装包包含薄层 `skills/prooflane/SKILL.md`。客户端配置、非交互授权和取消行为见 [MCP 接入](docs/mcp.md)。
+
+`npm pack` 会自动构建 dist；将 tarball 安装到独立目录时使用 `npm install --omit=dev /path/to/package.tgz`。分析器仍由目标项目自行安装。仓库和 npm 包保持 private，不执行公开发布。
+
 ## 验收
 
 ```sh
 npm run check
+npm run test:package
+npm run test:compatibility
+npm run verify:mcp-agent -- /path/to/foliosmith/epub --model MODEL
 npm run verify:project -- /path/to/foliosmith/epub
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL --verification-only --output-dir artifacts/verification-benchmark

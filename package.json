@@ -9,17 +9,23 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "docs/mcp.md",
+    "skills"
   ],
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
+    "prepack": "npm run build",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings src tests scripts",
     "test": "npm run build && node --test --test-timeout=30000 tests/*.test.mjs",
     "check": "npm run typecheck && npm run lint && npm test",
+    "test:package": "node --test --test-timeout=120000 tests/package.e2e.mjs",
+    "test:compatibility": "node scripts/check-compatibility.mjs",
+    "verify:mcp-agent": "node scripts/verify-mcp-agent.mjs",
     "verify:project": "npm run build && node scripts/verify-project.mjs"
   },
   "devDependencies": {

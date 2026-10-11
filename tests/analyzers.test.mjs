@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
-import { symlink, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { symlink, rm, readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { repository, put, verify, project, git } from './helpers.mjs';
 
+const analyzerRoot = resolve(process.env.PROOFLANE_ANALYZER_ROOT ?? project);
+
 async function tools(root, names) {
   await rm(join(root, 'node_modules'), { recursive: true, force: true });
-  await symlink(join(project, 'node_modules'), join(root, 'node_modules'), 'junction');
+  await symlink(join(analyzerRoot, 'node_modules'), join(root, 'node_modules'), 'junction');
   await put(root, '.gitignore', 'node_modules\nignored.ts\n');
   await put(root, 'prooflane.json', JSON.stringify({ analyzers: names, concurrency: 2 }));
 }
@@ -66,4 +68,17 @@ test('missing selected analyzer leaves successful analyzer findings visible; inv
   assert.equal(result.analyzers.find((a) => a.name === 'vitest').status, 'failed');
   await put(root, 'prooflane.json', '{"analyzers":[]}');
   assert.equal((await verify(root, 'invalid-analyzer-config', 'full')).outcome, 'incomplete');
+});
+
+test('versions below the supported floors and prereleases fail before starting an analyzer', async (t) => {
+  for (const [name, version] of [['oxlint', '1.73.9'], ['vitest', '4.9.9'], ['knip', '5.99.0'], ['react-doctor', '0.8.99'], ['oxlint', '1.87.0-rc.1']]) {
+    const root = await repository(t, { tool: 'missing' });
+    await put(root, 'prooflane.json', JSON.stringify({ analyzers: [name] }));
+    await put(root, `node_modules/${name}/package.json`, JSON.stringify({ version, bin: { [name]: 'cli.cjs' } }));
+    await put(root, `node_modules/${name}/cli.cjs`, "require('node:fs').writeFileSync('node_modules/started','yes'); console.log('{}');");
+    const result = await verify(root, `unsupported-${name}-${version}`, 'full');
+    assert.equal(result.outcome, 'incomplete');
+    assert.match(result.errors.join(' '), /supported >=/);
+    await assert.rejects(readFile(join(root, 'node_modules/started')), { code: 'ENOENT' });
+  }
 });
