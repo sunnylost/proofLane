@@ -3,6 +3,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { run } from './process.js';
 import type { AnalyzerResult, Finding } from './types.js';
+import { sourceFile, visibleFiles } from './git.js';
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Oxlint JSON object');
@@ -57,7 +58,15 @@ export async function analyze(root: string, paths: string[], reason: string, tim
     const hasErrors = findings.some((finding) => finding.severity === 'error');
     if ((result.code !== 0 && result.code !== 1) || (result.code === 1 && !hasErrors) || (result.code === 0 && hasErrors)) throw new Error(`Oxlint exit code ${result.code} contradicts its diagnostics`);
     if (report.number_of_files === 0) throw new Error('Oxlint checked zero files; verify paths and ignore configuration');
-    return { analyzer: { name: 'oxlint', status: 'completed', version, reason, filesChecked: report.number_of_files as number, durationMs: Math.round(performance.now() - started) }, findings };
+    const listing = await run(process.execPath, [resolve(dirname(packageFile), bin), '--debug', 'files', '--', ...paths], root, Math.max(1, timeoutMs - (performance.now() - started)), signal);
+    const candidates = (await visibleFiles(root, signal)).filter(sourceFile);
+    const listed = listing.stdout.split(/\r?\n/).filter(Boolean).map((file) => file.replace(/^\.\//, '').split(sep).join('/'));
+    const visible = new Set(await visibleFiles(root, signal));
+    const complete = !listing.failure && listing.code === 0 && listed.length === report.number_of_files && new Set(listed).size === listed.length && listed.every((file) => visible.has(file));
+    const checked = complete ? listed.sort() : [];
+    const requested = paths[0] === '.' ? candidates : paths.map((file) => file.replace(/^\.\//, ''));
+    const coverage = { requested, checked, excluded: complete ? requested.filter((file) => !checked.includes(file)) : [], complete, ...(!complete ? { reason: 'Analyzer file listing is unavailable or ambiguous; resolved findings cannot be inferred' } : {}) };
+    return { analyzer: { name: 'oxlint', status: 'completed', version, reason, filesChecked: report.number_of_files as number, coverage, durationMs: Math.round(performance.now() - started) }, findings };
   } catch (error) {
     const message = (error as NodeJS.ErrnoException).code === 'ENOENT'
       ? 'Oxlint is not installed in this repository; install it locally before verification'

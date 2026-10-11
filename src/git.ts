@@ -16,6 +16,16 @@ function splitPaths(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
+export function internalFile(file: string): boolean {
+  return file.startsWith('.prooflane/runs/') || file === '.prooflane/baseline.lock' || file.startsWith('.prooflane/.tmp-');
+}
+
+export async function visibleFiles(root: string, signal?: AbortSignal): Promise<string[]> {
+  return [...new Set(splitPaths(await git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], signal)))].filter((file) => !internalFile(file)).sort();
+}
+
+export function sourceFile(file: string): boolean { return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file); }
+
 export async function repositoryRoot(root: string, signal?: AbortSignal): Promise<string> {
   return realpath((await git(root, ['rev-parse', '--show-toplevel'], signal)).trimEnd());
 }
@@ -23,7 +33,7 @@ export async function repositoryRoot(root: string, signal?: AbortSignal): Promis
 export async function changedFiles(root: string, base: string | undefined, signal?: AbortSignal): Promise<{ files: string[]; deletedOrRenamed: boolean; base?: string }> {
   const revision = (await git(root, ['rev-parse', '--verify', '--end-of-options', `${base ?? 'HEAD'}^{commit}`], signal, base === undefined)).trim();
   if (!revision) {
-    return { files: [...new Set(splitPaths(await git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], signal)))].sort(), deletedOrRenamed: false };
+    return { files: await visibleFiles(root, signal), deletedOrRenamed: false };
   }
   const changes = splitPaths(await git(root, ['diff', '--name-status', '-z', '--find-renames', revision, '--'], signal));
   const files = new Set<string>();
@@ -41,14 +51,14 @@ export async function changedFiles(root: string, base: string | undefined, signa
     if (/^[DRTC]/.test(status)) deletedOrRenamed = true;
   }
   for (const file of splitPaths(await git(root, ['ls-files', '-z', '--others', '--exclude-standard'], signal))) files.add(file);
-  return { files: [...files].sort(), deletedOrRenamed, base: revision };
+  return { files: [...files].filter((file) => !internalFile(file)).sort(), deletedOrRenamed, base: revision };
 }
 
 export async function snapshot(root: string, signal?: AbortSignal): Promise<string> {
   const hash = createHash('sha256');
   hash.update(await git(root, ['rev-parse', '--verify', 'HEAD'], signal, true));
   hash.update(await git(root, ['ls-files', '--stage', '-z'], signal));
-  const files = [...new Set(splitPaths(await git(root, ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], signal)))].sort();
+  const files = await visibleFiles(root, signal);
   for (const file of files) {
     if (signal?.aborted) throw new Error('Verification cancelled');
     hash.update(`${file}\0`);

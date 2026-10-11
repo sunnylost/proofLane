@@ -40,11 +40,12 @@ try {
     console.log(help);
     process.exit(0);
   }
-  if (positionals.length !== 2 || positionals[0] !== 'verify' || !['changed', 'full'].includes(positionals[1]!)) throw new Error('Expected: prooflane verify <changed|full>; use --help');
+  const baselineAction = positionals[0] === 'baseline' && ['create', 'update', 'reset'].includes(positionals[1]!) ? positionals[1] as 'create' | 'update' | 'reset' : undefined;
+  if (positionals.length !== 2 || (!baselineAction && (positionals[0] !== 'verify' || !['changed', 'full'].includes(positionals[1]!)))) throw new Error('Expected: prooflane verify <changed|full> or baseline <create|update|reset>; use --help');
   if (values.base !== undefined && (positionals[1] !== 'changed' || !values.base)) throw new Error('--base requires the changed profile and a non-empty revision');
   const timeoutMs = Number(values['timeout-ms'] ?? 60_000);
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) throw new Error('--timeout-ms must be an integer between 1 and 2147483647');
-  result = await verify({ root: resolve(values.root ?? '.'), profile: positionals[1] as 'changed' | 'full', base: values.base, timeoutMs, signal: controller.signal });
+  result = await verify({ root: resolve(values.root ?? '.'), profile: baselineAction ? 'full' : positionals[1] as 'changed' | 'full', baselineAction, base: values.base, timeoutMs, signal: controller.signal });
 } catch (error) {
   result = { schemaVersion: 1, outcome: 'incomplete', profile: 'changed', scope: 'none', files: [], analyzers: [], findings: [], errors: [error instanceof Error ? error.message : String(error)] };
 } finally {
