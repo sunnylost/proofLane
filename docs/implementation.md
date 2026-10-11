@@ -76,3 +76,13 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - MCP stdin EOF 后分析器继续运行：增加断连取消、等待清理和 EOF 端到端回归，修复了 Node 26 全量验收挂起。
 
 真实 Agent 数据与样本边界见 [benchmark](benchmark.md)。
+
+## 后续 P0：可信 benchmark 与扩展样本
+
+- [x] Oracle 区分通过、确认缺陷和执行不完整；健康样本覆盖误阻塞。
+- [x] 固定输入源码、构建、配置、版本、哈希与每次实际 prompt；拒绝覆盖旧试验。
+- [x] 从 Git bundle 与 patch 重建 8 个场景，验证输入树及 oracle 一致。
+- [x] 增加配对重复、明确统计分母、缺失用量及失败会话处理。
+- [x] 修复真实预检发现的跨文件 baseline 漏检，CLI/Vitest 回归先失败后通过。
+- [ ] 完成随机目录标识下的 32 个真实 Agent 会话并记录全部结果。
+- [ ] 完成本次变更的跨平台 CI。

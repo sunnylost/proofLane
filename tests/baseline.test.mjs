@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
-import { repository, put, verify, cli, artifacts, git } from './helpers.mjs';
+import { repository, put, verify, cli, artifacts, git, project } from './helpers.mjs';
 
 async function baseline(root, action, label) {
   const run = spawnSync(process.execPath, [cli, 'baseline', action, '--root', root, '--json'], { encoding: 'utf8', timeout: 15000 });
@@ -113,4 +113,26 @@ test('ignored root analyzer configuration still invalidates the baseline', async
   const result = await verify(root, 'ignored-config-changed', 'full');
   assert.equal(result.outcome, 'incomplete');
   assert.match(result.errors.join(' '), /incompatible/);
+});
+
+test('restoring an implementation defect reruns historical test findings even when Git and the test file are unchanged', { timeout: 20000 }, async (t) => {
+  for (const history of ['baseline', 'observations']) {
+    const root = await repository(t);
+    await symlink(join(project, 'node_modules/vitest'), join(root, 'node_modules/vitest'), 'junction');
+    await put(root, 'prooflane.json', '{"analyzers":["vitest"]}');
+    await put(root, 'src/math.ts', 'export const add = (a,b) => a-b;');
+    await put(root, 'src/math.test.ts', "import {test,expect} from 'vitest'; import {add} from './math'; test('adds',()=>expect(add(2,3)).toBe(5));");
+    git(root, 'add', '.'); git(root, 'commit', '-m', 'accepted implementation defect');
+    assert.equal((await baseline(root, 'create', `test-history-${history}`)).code, 0);
+    await put(root, 'src/math.ts', 'export const add = (a,b) => a+b;');
+    const fixed = history === 'baseline'
+      ? (await baseline(root, 'update', `test-history-fixed-${history}`)).result
+      : await verify(root, `test-history-fixed-${history}`, 'full');
+    assert.equal(fixed.resolved.length, 1);
+    await put(root, 'src/math.ts', 'export const add = (a,b) => a-b;');
+    assert.equal(git(root, 'diff', '--', 'src'), '');
+    const returned = await verify(root, `test-history-returned-${history}`);
+    assert.equal(returned.outcome, 'block');
+    assert.equal(returned.findings[0].status, 'regression');
+  }
 });

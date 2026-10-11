@@ -35,8 +35,9 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
       result.files = changes.files;
       result.base = changes.base;
       const configurationChanged = changes.files.some(configurationFile);
-      if (configurationChanged || changes.deletedOrRenamed) {
-        reason = configurationChanged ? 'Configuration or dependency changes require project lint' : 'Deleted, renamed or type-changed files require project lint';
+      const historicalProjectFindings = baseline?.entries.some((item) => item.source !== 'oxlint');
+      if (configurationChanged || changes.deletedOrRenamed || historicalProjectFindings) {
+        reason = configurationChanged ? 'Configuration or dependency changes require project lint' : changes.deletedOrRenamed ? 'Deleted, renamed or type-changed files require project lint' : 'Historical cross-file findings require project verification; diagnostic files do not capture all dependencies';
       } else {
         paths = changes.files.filter(sourceFile).map((file) => `./${file}`);
         result.scope = paths.length ? 'files' : 'none';
