@@ -1,0 +1,30 @@
+{
+  "name": "@sunnylost/prooflane",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first verification harness for coding agents",
+  "type": "module",
+  "bin": {
+    "prooflane": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --deny-warnings src tests scripts",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "verify:project": "npm run build && node scripts/verify-project.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "oxlint": "1.87.0",
+    "typescript": "7.0.2"
+  }
+}
