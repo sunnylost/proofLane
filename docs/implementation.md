@@ -116,3 +116,5 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 方法、完整数字和限制见 [P2 性能与 Policy 记录](performance.md)。本机性能数字不能替代跨平台性能验收。
 
 本地 `npm run check` 的类型检查、lint 和 49 项测试全部通过；独立安装包 CLI / MCP E2E 通过。首次包验收被沙箱对默认 npm 缓存的写入限制阻止；改用仓库内独立缓存完成安装和真实验收，未修改用户缓存权限。记录为 `artifacts/p2-check.log`、`artifacts/p2-package.log` 和 `artifacts/p2-package-isolated.log`。云端使用既有六组 [Check matrix](https://github.com/sunnylost/proofLane/actions/workflows/check.yml) 按提交验收。
+
+首轮 P2 CI 的五组通过，Windows 新增性能 E2E 发现 `--import` 接收盘符路径时出现 `ERR_UNSUPPORTED_ESM_URL_SCHEME`；实际失败日志及产物保留在 `artifacts/p2-ci-windows-red*`。改为传入通过 `import.meta.url` 派生的文件 URL，沿用同一个 Windows E2E 验收，不跳过该测试。

@@ -44,10 +44,11 @@ function diagnostics(items) {
 async function measure(label, args) {
   const metrics = join(output, `${label}.resources.json`);
   const start = performance.now();
-  const child = command(process.execPath, ['--import', fileURLToPath(new URL('measure-process.mjs', import.meta.url)), join(project, 'dist/cli.js'), ...args, '--root', root, '--json'], project, { ...process.env, PROOFLANE_METRICS: metrics });
+  const child = command(process.execPath, ['--import', new URL('measure-process.mjs', import.meta.url).href, join(project, 'dist/cli.js'), ...args, '--root', root, '--json'], project, { ...process.env, PROOFLANE_METRICS: metrics });
   const wallMs = Math.round(performance.now() - start);
   await writeFile(join(output, `${label}.json`), child.stdout);
   await writeFile(join(output, `${label}.stderr.txt`), child.stderr);
+  assert.ok(child.stdout.trim(), `CLI emitted no JSON (exit ${child.status}): ${child.stderr.slice(0, 2000)}`);
   const result = JSON.parse(child.stdout);
   const resources = JSON.parse(await readFile(metrics, 'utf8'));
   const evidencePath = join(root, '.prooflane/runs', `${result.runId}.json`);
