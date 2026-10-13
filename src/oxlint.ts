@@ -58,13 +58,17 @@ export async function analyze(root: string, paths: string[], reason: string, tim
     if ((result.code !== 0 && result.code !== 1) || (result.code === 1 && !hasErrors) || (result.code === 0 && hasErrors)) throw new Error(`Oxlint exit code ${result.code} contradicts its diagnostics`);
     if (report.number_of_files === 0) throw new Error('Oxlint checked zero files; verify paths and ignore configuration');
     const listing = await run(process.execPath, [tool.bin, '--debug', 'files', '--', ...paths], root, Math.max(1, timeoutMs - (performance.now() - started)), signal);
-    const candidates = (await visibleFiles(root, signal)).filter(sourceFile);
+    const files = await visibleFiles(root, signal);
+    const candidates = files.filter(sourceFile);
     const listed = listing.stdout.split(/\r?\n/).filter(Boolean).map((file) => file.replace(/^\.\//, '').split(sep).join('/'));
-    const visible = new Set(await visibleFiles(root, signal));
-    const complete = !listing.failure && listing.code === 0 && listed.length === report.number_of_files && new Set(listed).size === listed.length && listed.every((file) => visible.has(file));
-    const checked = complete ? listed.sort() : [];
+    const visible = new Set(files);
+    const listedSet = new Set(listed);
+    const listedCompletely = !listing.failure && listing.code === 0 && listed.length === report.number_of_files && listedSet.size === listed.length && listed.every((file) => visible.has(file));
+    const parseFailed = findings.some((finding) => finding.rule === 'parse-error');
+    const complete = listedCompletely && !parseFailed;
+    const checked = listedCompletely ? listed.sort() : [];
     const requested = paths[0] === '.' ? candidates : paths.map((file) => file.replace(/^\.\//, ''));
-    const coverage = { requested, checked, excluded: complete ? requested.filter((file) => !checked.includes(file)) : [], complete, ...(!complete ? { reason: 'Analyzer file listing is unavailable or ambiguous; resolved findings cannot be inferred' } : {}) };
+    const coverage = { requested, checked, excluded: listedCompletely ? requested.filter((file) => !listedSet.has(file)) : [], complete, ...(!complete ? { reason: parseFailed ? 'Parse errors prevent complete lint coverage; resolved findings cannot be inferred' : 'Analyzer file listing is unavailable or ambiguous; resolved findings cannot be inferred' } : {}) };
     return { analyzer: { name: 'oxlint', status: 'completed', version, reason, filesChecked: report.number_of_files as number, coverage, evidence: raw, durationMs: Math.round(performance.now() - started) }, findings };
   } catch (error) {
     const message = (error as NodeJS.ErrnoException).code === 'ENOENT'

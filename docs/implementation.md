@@ -103,3 +103,16 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 真实 MCP 首轮被 Codex 非交互审批策略拦截，记录保留在 `artifacts/mcp-agent-p1`，没有计为通过。为已授权的三个工具配置临时精确预批准后，`artifacts/mcp-agent-p1-approved` 记录完整调用链和取消结果；全局客户端设置及原 EPUB 工作区保持不变。真实 Agent 取消验收限本机 POSIX；Windows 运行协议层取消与安装包 E2E，不冒充实际 Windows Codex 用户中断验收。
 
 首轮新增 CI 发现两项验收环境问题：npm 10.9.2 在新目录解析最低版本组合时抛出 `edgesOut` 异常，本地使用同版本重现；版本矩阵改用固定 npm 11.20.0 安装，仍使用矩阵指定的 Node 执行所有检查。Windows 在打包夹具内重复 npm ci 超过 90 秒；夹具改为复用 CI 已安装的构建工具，仍从无 dist 的源码构建 tarball，在独立目录真实 omit=dev 安装，并删除打包源码后运行全部 CLI/MCP 断言。
+
+## P2：真实仓库性能与最小 Policy 评估
+
+- [x] 增加可重复的真实 HEAD 副本性能脚本，测量首次/重复调用、全量/局部、baseline、Harness RSS 和实际证据大小，保留失败与全部原始记录。
+- [x] 对 Tara 的 2,568 文件 / 1,622 JS/TS 和 EPUB 的真实代码运行直接工具对照、错误注入、恢复验收；原仓库保持不变。
+- [x] 按测量结果移除重复文件遍历与线性集合查找，保留内容快照和历史跨文件问题的全量保护；没有增加缓存。
+- [x] 真实 CLI 回归发现并修复“解析错误将历史问题误记 resolved，恢复后误报 regression”；保留旧实现失败证据。
+- [x] 23 次真实验证后确认只保留最近 20 条 evidence，外部验收目录保存完整记录。
+- [x] 完成条件性 Policy 需求评估：两个试点可用现有分析器规则及 baseline 表达要求，暂不新增配置，默认 gate 不变。
+
+方法、完整数字和限制见 [P2 性能与 Policy 记录](performance.md)。本机性能数字不能替代跨平台性能验收。
+
+本地 `npm run check` 的类型检查、lint 和 49 项测试全部通过；独立安装包 CLI / MCP E2E 通过。首次包验收被沙箱对默认 npm 缓存的写入限制阻止；改用仓库内独立缓存完成安装和真实验收，未修改用户缓存权限。记录为 `artifacts/p2-check.log`、`artifacts/p2-package.log` 和 `artifacts/p2-package-isolated.log`。云端使用既有六组 [Check matrix](https://github.com/sunnylost/proofLane/actions/workflows/check.yml) 按提交验收。

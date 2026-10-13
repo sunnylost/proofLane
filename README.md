@@ -64,6 +64,8 @@ Baseline 命令执行完整验证；create 接纳初始问题，update 显式接
 
 普通验证不接纳新问题、不修改已接受的 baseline。它将确认修复的既有问题记录到本地 observations；问题再次出现即标为 regression。只有成功覆盖的文件、测试实体或项目图范围可以确认修复，未扫描、被忽略或跳过的测试不算已修复。
 
+Oxlint 遇到语法错误时仍报告 block，但覆盖范围标记为不完整：暂时消失的历史诊断不算已修复，也不能据此创建或更新 baseline。
+
 Baseline 包含 Vitest、Knip 或 React Doctor 历史 finding 时，`changed` 保守扩大到项目检查：诊断所在文件的摘要不能证明其依赖没有变化。这会增加检查成本，但避免被测实现恢复到 HEAD 后跳过历史回归。
 
 Fingerprint 使用工具、规则、相对路径、严重性、诊断上下文及重复次数；测试使用完整测试名称作为实体。空行移动不改变匹配结果，同类问题增加会形成新 finding。任意符号重命名或重构后的语义身份不作保证。
@@ -94,6 +96,7 @@ npm run test:package
 npm run test:compatibility
 npm run verify:mcp-agent -- /path/to/foliosmith/epub --model MODEL
 npm run verify:project -- /path/to/foliosmith/epub
+npm run benchmark:performance -- /path/to/repository --output-dir artifacts/performance-run
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL --verification-only --output-dir artifacts/verification-benchmark
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --verification-only --prepare-only --output-dir artifacts/benchmark-preflight
@@ -104,6 +107,8 @@ node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --verification-only --
 Agent benchmark 会调用外部 Codex 模型，需拥有向该服务发送被测源码的授权。它使用相同模型、预算、交错顺序和独立 oracle，保留原始用量、补丁和失败结果。详情见 [benchmark 记录](docs/benchmark.md)。
 
 只验证模式覆盖 8 个场景，默认每组重复 2 次（`--repetitions`），共 32 个会话；修复模式保留原有两个任务。`--prepare-only` 只执行预检和冻结输入重放，不调用模型。输出目录必须不存在，失败后使用新目录；不覆盖或自动重试已记录的会话。实验全部有效但存在错误判定时退出 1，执行不完整时退出 2。
+
+性能脚本在 HEAD 临时副本中使用本仓库安装的 Oxlint，保留项目规则，仅将分析器选择设为 Oxlint。测量全量、有 baseline 的全量、无修改及单文件修改，默认每组 3 次；`--repetitions 5` 可覆盖超过 20 条记录的留存清理。记录 CLI 墙钟时间、分析阶段时间、Harness 进程峰值 RSS 和证据大小，直接对照 Oxlint 诊断，并验证注入语法错误后阻塞、修复后通过。需要至少一个被分析的 TypeScript 文件及尚无 `.prooflane/` 状态的 HEAD；不调用模型。方法、结果和 Policy 评估见 [性能记录](docs/performance.md)。
 
 ## 边界
 

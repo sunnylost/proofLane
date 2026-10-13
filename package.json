@@ -26,6 +26,7 @@
     "test:package": "node --test --test-timeout=120000 tests/package.e2e.mjs",
     "test:compatibility": "node scripts/check-compatibility.mjs",
     "verify:mcp-agent": "node scripts/verify-mcp-agent.mjs",
+    "benchmark:performance": "npm run build && node scripts/benchmark-performance.mjs",
     "verify:project": "npm run build && node scripts/verify-project.mjs"
   },
   "devDependencies": {
