@@ -10,7 +10,7 @@ if (process.env.PROOFLANE_SAMPLE_TREE === '1') {
     let child;
     try {
       child = process.platform === 'win32'
-        ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ([math]::Ceiling($_.WorkingSetSize / 1024)) }"], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, timeout: 5000 })
+        ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "Get-CimInstance -Query 'SELECT ProcessId, ParentProcessId, WorkingSetSize FROM Win32_Process' | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ([math]::Ceiling($_.WorkingSetSize / 1024)) }"], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, timeout: 5000 })
         : spawn('ps', ['-A', '-o', 'pid=,ppid=,rss='], { stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000 });
     } catch (error) { tree.error = error.message; clearInterval(timer); pending = false; return; }
     let stdout = '', stderr = '';

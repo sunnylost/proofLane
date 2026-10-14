@@ -12,7 +12,7 @@ npm pack
 In an independent installation directory:
 
 ```sh
-npm install --omit=dev /path/to/sunnylost-prooflane-0.1.1.tgz
+npm install --omit=dev /path/to/sunnylost-prooflane-0.1.2.tgz
 ```
 
 Use the absolute path to that installation's `node_modules/@sunnylost/prooflane/dist/cli.js` and the target Git repository. For Codex, replace both placeholders in this configuration:
