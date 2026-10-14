@@ -122,15 +122,17 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 ## 正式接入迭代
 
 - [x] P0-1：修复 Svelte 增量漏检，同根因的 Vue、Astro 一并通过真实 CLI 回归。旧实现三项均在 changed 错误放行；修复后 changed/full 均 block，恢复后 pass。最低版本也运行相同用例，常规检查 52 项通过。
-- [ ] P1-1：EPUB 固定提交安装、项目命令、真实 MCP 和两条已审查 warning baseline 已完成，集成分支首次提交 `c61537f`；非阻塞 CI 已配置，远端验收等待 EPUB 分支推送授权。
+- [ ] P1-1：EPUB 固定提交安装、项目命令、真实 MCP 和两条已审查 warning baseline 已完成，集成分支 `fix/prooflane-integration` 最新为 `fb5acd9`；非阻塞 CI 已配置，远端验收等待 EPUB 分支推送授权。
 - [x] P1-2：EPUB `pnpm verify:project` 串联 ProofLane full 与原 `check:stage4`。真实全链通过，Playwright 为 57 通过、9 项原有跳过。首轮发现 baseline 缺少末尾换行导致 formatter 失败，已修复 JSON 写入并保留失败日志，没有关闭格式检查。
 - [ ] P1-3：真实开发任务记录器已实现，首个实际集成变更 `6da5ea1..da1841e` 已完成两种顺序共四次全链对照，全部通过。原流程平均 64.056 秒，新流程 65.337 秒；一个变更不足以完成连续日常样本要求，Agent token 与人工介入未测量，保持 null。
 - [x] P2-1：通过真实 CLI 验证 64 MiB evidence 清理、四个并发验证进程的修复历史和独立证据、强制终止 baseline writer 后原文件保持完整且拒绝陈旧锁，显式清理后恢复。容量用例以合法旧记录填充到上限以上；未将其称为分析器产生海量诊断的负载测试。
-- [ ] P2-2：进程树采样和真实子进程校准已实现，EPUB Oxlint + Knip 三次并发分析及采样通过，首轮安装形态不完整的失败保留。跨平台真实仓库 CI 及 Windows 真实 Agent 中断仍待外部环境/授权；不以协议测试替代实际客户端中断。
-- [x] P2-3：版本更新到 0.1.1，干净提交生成不可覆盖安装包及 sourceRevision/SHA-256/integrity 清单；脏工作区与重复输出目录均拒绝。真实 0.1.0 → 0.1.1 → 0.1.0 安装、CLI/MCP 检查及版本一致性通过。版本升级验收发现 MCP 仍硬编码 0.1.0，先记录失败再改为读取实际包版本。
+- [ ] P2-2：进程树采样和真实子进程校准已在三平台 CI 通过，Windows 原有 2.5 秒/96 MiB 校准捕获 8 帧和子进程，初始化成本 2.854 秒显式记录。EPUB Oxlint + Knip 三次并发分析及本机真实源码采样通过。EPUB 三平台真实性能 CI 已配置，等待分支推送；Windows 真实 Agent 中断仍需客户端环境，不以协议/资源校准代替。
+- [x] P2-3：内部交付版本最终为 0.1.3，干净提交生成不可覆盖安装包及 sourceRevision/SHA-256/integrity 清单；脏工作区与重复输出目录均拒绝。真实 0.1.1 → 0.1.3 → 0.1.1 安装、CLI/MCP 检查及版本一致性通过。版本升级验收发现 MCP 仍硬编码 0.1.0，先记录失败再改为读取实际包版本。
 
 P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。
 
 EPUB 原仓库 `private/prooflane-integration/` 保留完整验收日志；`private/prooflane-trials/first-integration/` 保留真实变更补丁、四次输出和 summary。采集器的失败保留及拒绝覆盖用例在 `tests/trials.test.mjs`，不把成功完成一次实验当作所有检查通过。
 
 内部 0.1.1 安装包来自 `1d98bcc`，SHA-256 为 `3412a304135b90782056dae90c7056c89a67e18030e9b74775cbda63ad9e7758`，位于 `artifacts/releases/0.1.1/`，没有发布 registry。`artifacts/package-version-red.log`、`artifacts/package-upgrade-green.log` 和 `artifacts/e2e/package-upgrade-rollback.json` 保存版本失败与完整升级回退证据。57 项常规检查与独立安装包验收通过，跨平台 CI 单独核对。
+
+最终 [3009489 的六组 CI](https://github.com/sunnylost/proofLane/actions/runs/38514975813) 全部通过：Linux/macOS 57 项通过；Windows 56 项通过、1 项原有 POSIX SIGINT 跳过。独立安装包、版本矩阵及 Windows 资源校准均实际通过，两个 Windows 失败轮次保留。CI 生成的 0.1.3 包 SHA-256 为 `a3bb1d201d56266b93075cb47fd767f0332abc61a222d2c67eef5ce4eeed5a82`，保存于 `artifacts/releases/0.1.3/`；升级回退证据单独保存于 `artifacts/package-upgrade-0.1.3/`。EPUB 最终使用这份已校验的 CI 包，全链再次通过（浏览器 57 通过、9 项既有跳过）。
