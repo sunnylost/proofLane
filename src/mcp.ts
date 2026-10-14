@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { readFile } from 'node:fs/promises';
 import { verify } from './verify.js';
 import { explain } from './evidence.js';
 import { repositoryRoot } from './git.js';
@@ -17,7 +18,8 @@ export async function serve(rootPath: string, signal: AbortSignal): Promise<void
   const root = await repositoryRoot(rootPath, signal);
   const lifetime = new AbortController();
   const active = new Set<Promise<VerificationResult>>();
-  const server = new McpServer({ name: 'prooflane', version: '0.1.0' }, { maxToolInputElements: 20 });
+  const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const server = new McpServer({ name: 'prooflane', version: metadata.version }, { maxToolInputElements: 20 });
   const timeoutMs = z.number().int().min(1).max(120_000).default(60_000);
   for (const [name, profile] of [['check_changes', 'changed'], ['check_project', 'full']] as const) {
     server.registerTool(name, { description: `Verify ${profile === 'changed' ? 'current changes' : 'the configured project'} using local analyzers. Pass covers only the selected checks.`, inputSchema: z.object({ base: z.string().min(1).max(256).optional(), timeoutMs }).strict() }, async (args, extra) => {

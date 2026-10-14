@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 const tree = { sampledMaxRssKiB: null, samples: 0, sampledMaxProcesses: 0, error: null };
 if (process.env.PROOFLANE_SAMPLE_TREE === '1') {
   let pending = false;
-  const timer = setInterval(() => {
+  const sample = () => {
     if (pending) return;
     pending = true;
     let child;
@@ -33,8 +33,10 @@ if (process.env.PROOFLANE_SAMPLE_TREE === '1') {
       tree.sampledMaxRssKiB = Math.max(tree.sampledMaxRssKiB ?? 0, rss);
       tree.sampledMaxProcesses = Math.max(tree.sampledMaxProcesses, family.size);
     });
-  }, 250);
+  };
+  const timer = setInterval(sample, 250);
   timer.unref();
+  sample();
 }
 
 process.on('exit', () => {

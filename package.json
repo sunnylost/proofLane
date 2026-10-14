@@ -1,6 +1,6 @@
 {
   "name": "@sunnylost/prooflane",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local-first verification harness for coding agents",
   "type": "module",
@@ -30,7 +30,8 @@
     "test:compatibility": "node scripts/check-compatibility.mjs",
     "verify:mcp-agent": "node scripts/verify-mcp-agent.mjs",
     "benchmark:performance": "npm run build && node scripts/benchmark-performance.mjs",
-    "verify:project": "npm run build && node scripts/verify-project.mjs"
+    "verify:project": "npm run build && node scripts/verify-project.mjs",
+    "package:release": "node scripts/package-release.mjs"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

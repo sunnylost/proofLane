@@ -28,6 +28,14 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:package
+      - run: npm run package:release -- artifacts/release
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        with:
+          name: prooflane-package-${{ github.sha }}
+          path: artifacts/release/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:

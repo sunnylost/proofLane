@@ -52,6 +52,7 @@ test('a clean source pack installs without dev dependencies and serves CLI and M
   client = new Client({ name: 'package-consumer', version: '1' });
   const transport = new StdioClientTransport({ command: process.execPath, args: [join(installed, 'dist/cli.js'), 'mcp', '--root', target] });
   await client.connect(transport);
+  assert.equal(client.getServerVersion().version, JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version);
   const evidence = await client.callTool({ name: 'explain', arguments: { runId: blocked.runId, findingId: blocked.findings[0].id } });
   assert.match(evidence.content[0].text, /debugger/);
   await put(target, 'source.ts', 'export const value = 1;\n');
@@ -61,4 +62,28 @@ test('a clean source pack installs without dev dependencies and serves CLI and M
   await client.close();
   const performance = spawnSync(process.execPath, [join(installed, 'scripts/benchmark-performance.mjs'), target, '--tool-root', target, '--output-dir', join(artifacts, `installed-performance-${Date.now()}`), '--repetitions', '2'], { encoding: 'utf8', timeout: 60000 });
   assert.equal(performance.status, 0, performance.stdout + performance.stderr);
+  if (process.env.PROOFLANE_PREVIOUS_PACKAGE) {
+    const transitions = [];
+    for (const tarball of [process.env.PROOFLANE_PREVIOUS_PACKAGE, join(root, packed.filename), process.env.PROOFLANE_PREVIOUS_PACKAGE]) {
+      const installation = npm(consumer, ['install', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund', tarball]);
+      assert.equal(installation.status, 0, installation.stderr);
+      const version = JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version;
+      await put(target, 'source.ts', 'debugger;\n');
+      const blocked = npm(consumer, ['exec', '--offline', '--', 'prooflane', 'verify', 'full', '--root', target, '--json']);
+      assert.equal(blocked.status, 1, blocked.stderr);
+      client = new Client({ name: 'upgrade-consumer', version: '1' });
+      await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(installed, 'dist/cli.js'), 'mcp', '--root', target] }));
+      assert.equal(client.getServerVersion().version, version);
+      await put(target, 'source.ts', 'export const value = 1;\n');
+      const fixed = await client.callTool({ name: 'check_changes', arguments: {} });
+      assert.equal(JSON.parse(fixed.content[0].text).outcome, 'pass');
+      transitions.push({ version, server: client.getServerVersion(), blocked: JSON.parse(blocked.stdout), fixed });
+      await writeFile(join(artifacts, `package-transition-${transitions.length}-lock.json`), await readFile(join(consumer, 'package-lock.json')));
+      await client.close();
+    }
+    assert.notEqual(transitions[0].version, packed.version, 'Previous package must be a different version');
+    assert.equal(transitions[1].version, packed.version);
+    assert.equal(transitions[2].version, transitions[0].version);
+    await writeFile(join(artifacts, 'package-upgrade-rollback.json'), JSON.stringify({ transitions }, null, 2));
+  }
 });
