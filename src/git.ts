@@ -38,7 +38,7 @@ export async function visibleFiles(root: string, signal?: AbortSignal): Promise<
   return files.sort();
 }
 
-export function sourceFile(file: string): boolean { return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file); }
+export function sourceFile(file: string): boolean { return /\.(?:[cm]?[jt]s|[jt]sx|svelte|vue|astro)$/.test(file); }
 
 export async function repositoryRoot(root: string, signal?: AbortSignal): Promise<string> {
   return realpath((await git(root, ['rev-parse', '--show-toplevel'], signal)).replace(/\n$/, ''));

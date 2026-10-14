@@ -118,3 +118,15 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 本地 `npm run check` 的类型检查、lint 和 49 项测试全部通过；独立安装包 CLI / MCP E2E 通过。首次包验收被沙箱对默认 npm 缓存的写入限制阻止；改用仓库内独立缓存完成安装和真实验收，未修改用户缓存权限。记录为 `artifacts/p2-check.log`、`artifacts/p2-package.log` 和 `artifacts/p2-package-isolated.log`。云端使用既有六组 [Check matrix](https://github.com/sunnylost/proofLane/actions/workflows/check.yml) 按提交验收。
 
 首轮 P2 CI 的五组通过，Windows 新增性能 E2E 发现 `--import` 接收盘符路径时出现 `ERR_UNSUPPORTED_ESM_URL_SCHEME`；实际失败日志及产物保留在 `artifacts/p2-ci-windows-red*`。改为传入通过 `import.meta.url` 派生的文件 URL，沿用同一个 Windows E2E 验收，不跳过该测试。
+
+## 正式接入迭代
+
+- [x] P0-1：修复 Svelte 增量漏检，同根因的 Vue、Astro 一并通过真实 CLI 回归。旧实现三项均在 changed 错误放行；修复后 changed/full 均 block，恢复后 pass。最低版本也运行相同用例，常规检查 52 项通过。
+- [ ] P1-1：EPUB 固定版本安装、项目命令、MCP 和非阻塞 CI，审查 baseline。
+- [ ] P1-2：复用 EPUB 现有验收命令形成完整入口，不弱化类型、构建、Rust/WASM 和 Playwright 检查。
+- [ ] P1-3：真实开发任务试点，记录完整样本与成本，不用故障注入替代日常使用证据。
+- [ ] P2-1：64 MiB evidence 边界、并发写入和中断后的持久化状态验收。
+- [ ] P2-2：Windows 真实 Agent 中断、跨平台真实仓库与多分析器进程树资源测量。
+- [ ] P2-3：版本化安装包、提交及校验值绑定、可重复安装与升级回退。
+
+P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。

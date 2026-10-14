@@ -18,7 +18,7 @@ node dist/cli.js verify full --root /path/to/repository
 
 `changed` 默认比较 HEAD 与工作目录，包含暂存、未暂存和未忽略的新文件。`--base` 直接与指定 commit 比较，不自动计算 merge-base。Baseline 中记录的文件内容发生变化时也会补入检查，避免恢复到 HEAD 后漏掉回归。
 
-扫描范围始终是 Git 仓库。传入 workspace 子目录时，工具从该目录向 Git 根目录查找，不越过仓库边界。普通修改检查 JavaScript / TypeScript；配置、依赖、文件删除、重命名和子模块修改扩大到项目扫描。
+扫描范围始终是 Git 仓库。传入 workspace 子目录时，工具从该目录向 Git 根目录查找，不越过仓库边界。普通修改检查 JavaScript / TypeScript 及 Svelte、Vue、Astro 组件；配置、依赖、文件删除、重命名和子模块修改扩大到项目扫描。
 
 | 退出码 | 结论 | 含义 |
 | --- | --- | --- |

@@ -23,7 +23,7 @@ export async function put(root, file, content) {
   await writeFile(join(root, file), content);
 }
 
-export async function repository(t, { tool = 'real', commit = true, cleanup = true } = {}) {
+export async function repository(t, { tool = 'real', toolRoot = project, commit = true, cleanup = true } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'prooflane-e2e-'));
   if (cleanup) t.after(() => rm(root, { recursive: true, force: true }));
   git(root, 'init', '-b', 'main');
@@ -34,7 +34,7 @@ export async function repository(t, { tool = 'real', commit = true, cleanup = tr
   await put(root, 'src/history.ts', 'debugger;\n');
   if (tool === 'real') {
     await mkdir(join(root, 'node_modules'), { recursive: true });
-    await symlink(join(project, 'node_modules/oxlint'), join(root, 'node_modules/oxlint'), 'junction');
+    await symlink(join(toolRoot, 'node_modules/oxlint'), join(root, 'node_modules/oxlint'), 'junction');
   } else if (tool !== 'missing') {
     await put(root, 'node_modules/oxlint/package.json', JSON.stringify({ version: '1.87.0', bin: { oxlint: 'cli.cjs' } }));
     await put(root, 'node_modules/oxlint/cli.cjs', tool);

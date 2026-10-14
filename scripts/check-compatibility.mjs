@@ -31,7 +31,7 @@ await writeFile(join(output, 'summary.json'), JSON.stringify(summary, null, 2));
 for (const [tier, root] of [['minimum', minimum], ['recommended', project]]) {
   for (const [name, range] of Object.entries(analyzerVersions)) assert.equal(JSON.parse(await readFile(join(root, 'node_modules', name, 'package.json'), 'utf8')).version, range[tier]);
   const env = { ...process.env, PROOFLANE_ANALYZER_ROOT: root, PROOFLANE_ARTIFACTS: join(output, tier) };
-  await execute(tier, ['--test', '--test-timeout=30000', 'tests/analyzers.test.mjs'], env);
+  await execute(tier, ['--test', '--test-timeout=30000', 'tests/analyzers.test.mjs', 'tests/frameworks.test.mjs'], env);
   summary.completed.push(tier);
   await writeFile(join(output, 'summary.json'), JSON.stringify(summary, null, 2));
 }

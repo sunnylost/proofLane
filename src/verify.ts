@@ -41,7 +41,7 @@ export async function verify(request: VerifyRequest): Promise<VerificationResult
       } else {
         paths = changes.files.filter(sourceFile).map((file) => `./${file}`);
         result.scope = paths.length ? 'files' : 'none';
-        reason = paths.length ? 'Lint changed JavaScript and TypeScript files' : 'No changed JavaScript or TypeScript files';
+        reason = paths.length ? 'Check changed JavaScript, TypeScript and framework component files' : 'No changed JavaScript, TypeScript or supported framework component files';
       }
     }
     let next = 0;
