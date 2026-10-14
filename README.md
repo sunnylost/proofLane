@@ -88,7 +88,7 @@ stdio 服务提供 `check_changes`、`check_project`、`explain`。项目根目�
 
 `npm pack` 会自动构建 dist；将 tarball 安装到独立目录时使用 `npm install --omit=dev /path/to/package.tgz`。分析器仍由目标项目自行安装。仓库和 npm 包保持 private，不执行公开发布。
 
-内部交付使用 `npm run package:release -- artifacts/releases/0.1.1`，要求工作区干净且输出目录不存在。`release.json` 绑定包版本、Git 提交、SHA-256 和 npm integrity，失败也保留日志；CI 的 Linux Node 24 job 上传同类安装包产物。升级和回退都安装指定 tarball 并保留锁文件。可用 `PROOFLANE_PREVIOUS_PACKAGE=/path/to/previous.tgz npm run test:package` 验证旧版 → 新版 → 旧版的真实 CLI/MCP 行为；没有提供旧包时不宣称验收过回退。
+内部交付使用 `npm run package:release -- artifacts/releases/0.1.3`，要求工作区干净且输出目录不存在。`release.json` 绑定包版本、Git 提交、SHA-256 和 npm integrity，失败也保留日志；CI 的 Linux Node 24 job 上传同类安装包产物。升级和回退都安装指定 tarball 并保留锁文件。可用 `PROOFLANE_PREVIOUS_PACKAGE=/path/to/previous.tgz npm run test:package` 验证旧版 → 新版 → 旧版的真实 CLI/MCP 行为；没有提供旧包时不宣称验收过回退。
 
 ## 验收
 

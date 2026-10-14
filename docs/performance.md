@@ -78,3 +78,5 @@ Tara 单文件中位耗时降低约 5.1%，有 baseline 的全量降低约 7.9%�
 首轮只复制根 node_modules，缺少 workspace 本地依赖，Knip 返回 incomplete，保留在 `artifacts/epub-multi-process-tree-sjtDnO`。按实际安装形态补齐各 workspace 的 node_modules 和已构建 dist/pkg 后通过，原始工具证据与目录清单保留在 `artifacts/epub-multi-installed-K8xeNa`。该结果依赖已构建项目，不冒充干净源码构建验收。
 
 性能脚本现可从安装包运行：指定真实源码仓库与 `--tool-root`，原 baseline 仅在临时副本移除，摘要记录其路径。工作区本身与 baseline 不改动。真实 Windows Agent 中断仍需已登录的 Windows 客户端；协议取消和资源采样校准不能替代该项验收。
+
+Windows CI 的 2.5 秒、96 MiB 子进程校准发现逐次启动 PowerShell 的方式只采到主进程；改成三个字段查询仍未解决，两个失败分别保留在 `artifacts/next-ci-windows-red` 和 `artifacts/sampler-projection-windows-red`。Windows 采样现采用持续进程，先等待首帧再启动被测程序；`startupMs` 记录初始化成本，总墙钟仍包含该成本，不延长校准子进程的生命周期。最终可用性以同一 Windows 校准用例的真实结果为准。
