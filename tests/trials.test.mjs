@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import test from 'node:test';
+import { repository, put, git, project, artifacts } from './helpers.mjs';
+
+test('real-change trial runner retains failing comparisons and refuses to overwrite them', async (t) => {
+  const root = await repository(t);
+  const base = git(root, 'rev-parse', 'HEAD');
+  await put(root, 'package.json', JSON.stringify({ private: true, scripts: { reference: 'node -e "console.log(123)"', candidate: 'node -e "process.exitCode=1"' } }));
+  git(root, 'add', '.'); git(root, 'commit', '-m', 'actual script change');
+  const output = join(artifacts, `project-trial-${randomUUID()}`);
+  const args = [join(project, 'scripts/record-project-trial.mjs'), '--root', root, '--base', base, '--label', 'script change', '--output-dir', output, '--reference', 'reference', '--candidate', 'candidate'];
+  const result = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 20000 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 1, result.stderr);
+  const path = join(output, 'summary.json');
+  const text = await readFile(path, 'utf8');
+  const summary = JSON.parse(text);
+  assert.equal(summary.complete, true);
+  assert.equal(summary.allChecksPassed, false);
+  assert.deepEqual(summary.trials.map((trial) => trial.passed), [true, false, false, true]);
+  assert.equal(summary.agentUsage, null);
+  for (const trial of summary.trials) assert.ok(trial.wallMs > 0);
+  assert.match(await readFile(join(output, '1-reference.stdout.log'), 'utf8'), /123/);
+  assert.equal(git(root, 'status', '--porcelain=v1'), '');
+  assert.notEqual(spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 5000 }).status, 0);
+  assert.equal(await readFile(path, 'utf8'), text);
+});

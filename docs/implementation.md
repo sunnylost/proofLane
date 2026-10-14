@@ -122,11 +122,13 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 ## 正式接入迭代
 
 - [x] P0-1：修复 Svelte 增量漏检，同根因的 Vue、Astro 一并通过真实 CLI 回归。旧实现三项均在 changed 错误放行；修复后 changed/full 均 block，恢复后 pass。最低版本也运行相同用例，常规检查 52 项通过。
-- [ ] P1-1：EPUB 固定版本安装、项目命令、MCP 和非阻塞 CI，审查 baseline。
-- [ ] P1-2：复用 EPUB 现有验收命令形成完整入口，不弱化类型、构建、Rust/WASM 和 Playwright 检查。
-- [ ] P1-3：真实开发任务试点，记录完整样本与成本，不用故障注入替代日常使用证据。
+- [ ] P1-1：EPUB 固定提交安装、项目命令、真实 MCP 和两条已审查 warning baseline 已完成，集成分支首次提交 `c61537f`；非阻塞 CI 已配置，远端验收等待 EPUB 分支推送授权。
+- [x] P1-2：EPUB `pnpm verify:project` 串联 ProofLane full 与原 `check:stage4`。真实全链通过，Playwright 为 57 通过、9 项原有跳过。首轮发现 baseline 缺少末尾换行导致 formatter 失败，已修复 JSON 写入并保留失败日志，没有关闭格式检查。
+- [ ] P1-3：真实开发任务记录器已实现，首个实际集成变更 `6da5ea1..da1841e` 已完成两种顺序共四次全链对照，全部通过。原流程平均 64.056 秒，新流程 65.337 秒；一个变更不足以完成连续日常样本要求，Agent token 与人工介入未测量，保持 null。
 - [ ] P2-1：64 MiB evidence 边界、并发写入和中断后的持久化状态验收。
 - [ ] P2-2：Windows 真实 Agent 中断、跨平台真实仓库与多分析器进程树资源测量。
 - [ ] P2-3：版本化安装包、提交及校验值绑定、可重复安装与升级回退。
 
 P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。
+
+EPUB 原仓库 `private/prooflane-integration/` 保留完整验收日志；`private/prooflane-trials/first-integration/` 保留真实变更补丁、四次输出和 summary。采集器的失败保留及拒绝覆盖用例在 `tests/trials.test.mjs`，不把成功完成一次实验当作所有检查通过。

@@ -97,6 +97,7 @@ npm run test:compatibility
 npm run verify:mcp-agent -- /path/to/foliosmith/epub --model MODEL
 npm run verify:project -- /path/to/foliosmith/epub
 npm run benchmark:performance -- /path/to/repository --output-dir artifacts/performance-run
+node scripts/record-project-trial.mjs --root /path/to/repository --base BASE_COMMIT --label TASK --output-dir artifacts/project-trial
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --model MODEL --verification-only --output-dir artifacts/verification-benchmark
 node scripts/benchmark-agent.mjs /path/to/foliosmith/epub --verification-only --prepare-only --output-dir artifacts/benchmark-preflight
@@ -109,6 +110,8 @@ Agent benchmark 会调用外部 Codex 模型，需拥有向该服务发送被测
 只验证模式覆盖 8 个场景，默认每组重复 2 次（`--repetitions`），共 32 个会话；修复模式保留原有两个任务。`--prepare-only` 只执行预检和冻结输入重放，不调用模型。输出目录必须不存在，失败后使用新目录；不覆盖或自动重试已记录的会话。实验全部有效但存在错误判定时退出 1，执行不完整时退出 2。
 
 性能脚本在 HEAD 临时副本中使用本仓库安装的 Oxlint，保留项目规则，仅将分析器选择设为 Oxlint。测量全量、有 baseline 的全量、无修改及单文件修改，默认每组 3 次；`--repetitions 5` 可覆盖超过 20 条记录的留存清理。记录 CLI 墙钟时间、分析阶段时间、Harness 进程峰值 RSS 和证据大小，直接对照 Oxlint 诊断，并验证注入语法错误后阻塞、修复后通过。需要至少一个被分析的 TypeScript 文件及尚无 `.prooflane/` 状态的 HEAD；不调用模型。方法、结果和 Policy 评估见 [性能记录](docs/performance.md)。
+
+真实修改记录器要求已提交且干净的工作区，保存 base 到 HEAD 的实际补丁，按两种顺序对照项目已有命令。默认比较 `check:stage4` 与 `verify:project`，可用 `--reference` / `--candidate` 指定 package scripts；调用项目声明的 npm/pnpm/yarn，核对版本。所有执行结果和失败均保留，退出 1 表示有检查失败，退出 2 表示记录未完成。它不调用 Agent，token 和人工介入字段保持未知；一次运行不代表长期试点完成。
 
 ## 边界
 
