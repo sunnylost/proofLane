@@ -25,7 +25,7 @@ if (process.env.PROOFLANE_SAMPLE_TREE === '1' && process.platform === 'win32') {
   if (sampler) {
     let buffer = '', stderr = '', lastSample = performance.now(), stopping = false;
     await new Promise((resolve) => {
-      const timeout = setTimeout(() => { tree.error = 'Windows sampler did not become ready'; sampler.kill(); resolve(); }, 5000);
+      const timeout = setTimeout(() => { tree.error = `Windows sampler did not become ready within 20 seconds (${buffer.length} buffered bytes): ${stderr.trim().slice(0, 500)}`; sampler.kill(); resolve(); }, 20000);
       const ready = () => { clearTimeout(timeout); resolve(); };
       sampler.stdout.on('data', (chunk) => {
         buffer += chunk.toString().replaceAll('\r', '');
@@ -43,10 +43,12 @@ if (process.env.PROOFLANE_SAMPLE_TREE === '1' && process.platform === 'win32') {
     });
     tree.startupMs = Math.round(performance.now() - started);
     sampler.unref(); sampler.stdout.unref(); sampler.stderr.unref();
-    const health = setInterval(() => {
-      if (performance.now() - lastSample > 5000) { tree.error = 'Windows sampler stalled'; sampler.kill(); clearInterval(health); }
-    }, 1000);
-    health.unref();
+    if (!tree.error) {
+      const health = setInterval(() => {
+        if (performance.now() - lastSample > 5000) { tree.error ??= 'Windows sampler stalled'; sampler.kill(); clearInterval(health); }
+      }, 1000);
+      health.unref();
+    }
     process.on('exit', () => { stopping = true; sampler.kill(); });
   }
 } else if (process.env.PROOFLANE_SAMPLE_TREE === '1') {

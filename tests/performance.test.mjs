@@ -40,11 +40,11 @@ test('performance runner measures CLI evidence without altering dirty source or 
   assert.equal(await readFile(join(output, 'summary.json'), 'utf8'), saved);
 });
 
-test('process-tree RSS sampling includes an actual memory-allocating child', { timeout: 15000 }, async () => {
+test('process-tree RSS sampling includes an actual memory-allocating child', { timeout: 30000 }, async () => {
   const metrics = join(artifacts, `process-tree-${randomUUID()}.json`);
   const child = "const data=Buffer.alloc(96*1024*1024,1); setTimeout(()=>console.log(data.length),2500);";
   const program = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(child)}],{stdio:'ignore'});`;
-  const run = spawnSync(process.execPath, ['--import', pathToFileURL(join(project, 'scripts/measure-process.mjs')).href, '-e', program], { encoding: 'utf8', timeout: 12000, env: { ...process.env, PROOFLANE_METRICS: metrics, PROOFLANE_SAMPLE_TREE: '1' } });
+  const run = spawnSync(process.execPath, ['--import', pathToFileURL(join(project, 'scripts/measure-process.mjs')).href, '-e', program], { encoding: 'utf8', timeout: 27000, env: { ...process.env, PROOFLANE_METRICS: metrics, PROOFLANE_SAMPLE_TREE: '1' } });
   assert.equal(run.status, 0, run.stderr);
   const resources = JSON.parse(await readFile(metrics, 'utf8'));
   assert.equal(resources.processTree.error, null);
