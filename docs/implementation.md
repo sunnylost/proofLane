@@ -127,8 +127,10 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - [ ] P1-3：真实开发任务记录器已实现，首个实际集成变更 `6da5ea1..da1841e` 已完成两种顺序共四次全链对照，全部通过。原流程平均 64.056 秒，新流程 65.337 秒；一个变更不足以完成连续日常样本要求，Agent token 与人工介入未测量，保持 null。
 - [x] P2-1：通过真实 CLI 验证 64 MiB evidence 清理、四个并发验证进程的修复历史和独立证据、强制终止 baseline writer 后原文件保持完整且拒绝陈旧锁，显式清理后恢复。容量用例以合法旧记录填充到上限以上；未将其称为分析器产生海量诊断的负载测试。
 - [ ] P2-2：进程树采样和真实子进程校准已实现，EPUB Oxlint + Knip 三次并发分析及采样通过，首轮安装形态不完整的失败保留。跨平台真实仓库 CI 及 Windows 真实 Agent 中断仍待外部环境/授权；不以协议测试替代实际客户端中断。
-- [ ] P2-3：版本化安装包、提交及校验值绑定、可重复安装与升级回退。
+- [x] P2-3：版本更新到 0.1.1，干净提交生成不可覆盖安装包及 sourceRevision/SHA-256/integrity 清单；脏工作区与重复输出目录均拒绝。真实 0.1.0 → 0.1.1 → 0.1.0 安装、CLI/MCP 检查及版本一致性通过。版本升级验收发现 MCP 仍硬编码 0.1.0，先记录失败再改为读取实际包版本。
 
 P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。
 
 EPUB 原仓库 `private/prooflane-integration/` 保留完整验收日志；`private/prooflane-trials/first-integration/` 保留真实变更补丁、四次输出和 summary。采集器的失败保留及拒绝覆盖用例在 `tests/trials.test.mjs`，不把成功完成一次实验当作所有检查通过。
+
+内部 0.1.1 安装包来自 `1d98bcc`，SHA-256 为 `3412a304135b90782056dae90c7056c89a67e18030e9b74775cbda63ad9e7758`，位于 `artifacts/releases/0.1.1/`，没有发布 registry。`artifacts/package-version-red.log`、`artifacts/package-upgrade-green.log` 和 `artifacts/e2e/package-upgrade-rollback.json` 保存版本失败与完整升级回退证据。57 项常规检查与独立安装包验收通过，跨平台 CI 单独核对。
