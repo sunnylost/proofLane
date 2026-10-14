@@ -11,6 +11,9 @@
     "dist",
     "README.md",
     "docs/mcp.md",
+    "scripts/benchmark-performance.mjs",
+    "scripts/measure-process.mjs",
+    "scripts/record-project-trial.mjs",
     "skills"
   ],
   "engines": {

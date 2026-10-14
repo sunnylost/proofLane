@@ -68,3 +68,13 @@ Tara 单文件中位耗时降低约 5.1%，有 baseline 的全量降低约 7.9%�
 现有分析器规则严重性配置加显式 baseline 已能表达这两个项目当前的接纳方式：新增 error 阻塞，已接纳问题保留，确认修复后复现阻塞。没有发现必须由 Harness 单独表达的逐规则条件。因此需求评估完成，暂不增加 Policy 配置或配置解析分支。
 
 若后续项目提出分析器配置无法表达的阻塞条件，再以该真实场景驱动最小配置。执行失败、覆盖异常导致的 incomplete 和默认 gate 不得因 Policy 配置而变成 pass。
+
+## 进程树与多分析器补充验收
+
+`--process-tree` 每 250 ms 请求 PID、父 PID 和 RSS；macOS/Linux 使用 ps，Windows 使用 PowerShell CIM。只累加 Harness 及其后代，排除采样器及其后代。采样可能漏过短命进程或瞬时峰值，RSS 求和也可能重复计算共享内存，不能称为精确物理内存峰值。启用后包括额外采样开销，不与上面的无采样墙钟数据直接比较。受限环境无法采样时记录错误，验收脚本不会将缺失指标算作成功。
+
+本机真实 96 MiB 子进程校准已通过。EPUB 的 Oxlint + Knip 三次完整并发分析耗时为 2.547 / 1.254 / 1.244 秒，进程树 RSS 采样最大值为 328,464 / 314,704 / 317,312 KiB，Harness 自身 maxRSS 为 81,040 / 82,752 / 82,512 KiB。每次两个分析器均 completed，返回 24 条 warning，原项目未修改；这不是对 24 条诊断的逐项业务确认。
+
+首轮只复制根 node_modules，缺少 workspace 本地依赖，Knip 返回 incomplete，保留在 `artifacts/epub-multi-process-tree-sjtDnO`。按实际安装形态补齐各 workspace 的 node_modules 和已构建 dist/pkg 后通过，原始工具证据与目录清单保留在 `artifacts/epub-multi-installed-K8xeNa`。该结果依赖已构建项目，不冒充干净源码构建验收。
+
+性能脚本现可从安装包运行：指定真实源码仓库与 `--tool-root`，原 baseline 仅在临时副本移除，摘要记录其路径。工作区本身与 baseline 不改动。真实 Windows Agent 中断仍需已登录的 Windows 客户端；协议取消和资源采样校准不能替代该项验收。

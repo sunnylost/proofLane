@@ -21,7 +21,7 @@ test('a clean source pack installs without dev dependencies and serves CLI and M
     assert.equal(result.error, undefined);
     return result;
   };
-  for (const file of ['src', 'skills', 'docs', 'README.md', 'package.json', 'package-lock.json', 'tsconfig.json']) await cp(join(project, file), join(staging, file), { recursive: true });
+  for (const file of ['src', 'skills', 'scripts', 'docs', 'README.md', 'package.json', 'package-lock.json', 'tsconfig.json']) await cp(join(project, file), join(staging, file), { recursive: true });
   await symlink(join(project, 'node_modules'), join(staging, 'node_modules'), 'junction');
   let result = npm(staging, ['pack', '--json', '--pack-destination', root]);
   await writeFile(join(artifacts, 'package-pack.json'), result.stdout);
@@ -59,4 +59,6 @@ test('a clean source pack installs without dev dependencies and serves CLI and M
   assert.equal(JSON.parse(reply.content[0].text).outcome, 'pass');
   await writeFile(join(artifacts, 'package-acceptance.json'), JSON.stringify({ node: process.version, platform: process.platform, integrity: packed.integrity, blocked, evidence, fixed: reply }, null, 2));
   await client.close();
+  const performance = spawnSync(process.execPath, [join(installed, 'scripts/benchmark-performance.mjs'), target, '--tool-root', target, '--output-dir', join(artifacts, `installed-performance-${Date.now()}`), '--repetitions', '2'], { encoding: 'utf8', timeout: 60000 });
+  assert.equal(performance.status, 0, performance.stdout + performance.stderr);
 });

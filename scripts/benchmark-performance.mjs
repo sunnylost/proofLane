@@ -1,19 +1,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { cpus, platform, release, tmpdir, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { 'output-dir': { type: 'string' }, repetitions: { type: 'string', default: '3' } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { 'output-dir': { type: 'string' }, repetitions: { type: 'string', default: '3' }, 'tool-root': { type: 'string' }, 'process-tree': { type: 'boolean', default: false } } });
 assert.equal(positionals.length, 1, 'Usage: npm run benchmark:performance -- <repository> --output-dir <new directory> [--repetitions 3]');
 assert.ok(values['output-dir'], '--output-dir is required; existing results are never overwritten');
 const repetitions = Number(values.repetitions);
 assert.ok(Number.isSafeInteger(repetitions) && repetitions >= 2 && repetitions <= 20, 'repetitions must be 2..20');
 const source = resolve(positionals[0]);
+const toolRoot = resolve(values['tool-root'] ?? project);
 const output = resolve(values['output-dir']);
 await mkdir(dirname(output), { recursive: true });
 await mkdir(output);
@@ -44,7 +45,7 @@ function diagnostics(items) {
 async function measure(label, args) {
   const metrics = join(output, `${label}.resources.json`);
   const start = performance.now();
-  const child = command(process.execPath, ['--import', new URL('measure-process.mjs', import.meta.url).href, join(project, 'dist/cli.js'), ...args, '--root', root, '--json'], project, { ...process.env, PROOFLANE_METRICS: metrics });
+  const child = command(process.execPath, ['--import', new URL('measure-process.mjs', import.meta.url).href, join(project, 'dist/cli.js'), ...args, '--root', root, '--json'], project, { ...process.env, PROOFLANE_METRICS: metrics, PROOFLANE_SAMPLE_TREE: values['process-tree'] ? '1' : '0' });
   const wallMs = Math.round(performance.now() - start);
   await writeFile(join(output, `${label}.json`), child.stdout);
   await writeFile(join(output, `${label}.stderr.txt`), child.stderr);
@@ -54,12 +55,13 @@ async function measure(label, args) {
   const evidencePath = join(root, '.prooflane/runs', `${result.runId}.json`);
   const evidenceBytes = (await stat(evidencePath)).size;
   await cp(evidencePath, join(output, `${label}.evidence.json`));
-  const record = { label, wallMs, harnessMaxRssKiB: resources.maxRSS, analyzerMs: result.analyzers.reduce((sum, analyzer) => sum + (analyzer.durationMs ?? 0), 0), evidenceBytes, outcome: result.outcome, scope: result.scope, filesChecked: result.analyzers[0]?.filesChecked ?? 0, findings: result.findings.length };
+  const record = { label, wallMs, harnessMaxRssKiB: resources.maxRSS, processTree: resources.processTree, analyzerMs: result.analyzers.reduce((sum, analyzer) => sum + (analyzer.durationMs ?? 0), 0), evidenceBytes, outcome: result.outcome, scope: result.scope, filesChecked: result.analyzers[0]?.filesChecked ?? 0, findings: result.findings.length };
   summary.runs.push(record);
   console.log(JSON.stringify(record));
   assert.equal(child.status, { pass: 0, block: 1, incomplete: 2 }[result.outcome]);
   assert.notEqual(result.outcome, 'incomplete', JSON.stringify(result.errors));
   assert.ok(resources.maxRSS > 0, 'Process RSS measurement unavailable');
+  if (values['process-tree']) assert.ok(resources.processTree.samples > 0 && !resources.processTree.error, JSON.stringify(resources.processTree));
   return result;
 }
 
@@ -79,7 +81,10 @@ try {
   originalStatus = git(source, 'status', '--porcelain=v1', '-z');
   summary.sourceStateSha256 = sourceState();
   summary.sourceRevision = git(source, 'rev-parse', 'HEAD').trim();
-  summary.harnessRevision = git(project, 'rev-parse', 'HEAD').trim();
+  const harnessGit = command('git', ['rev-parse', '--show-toplevel'], project);
+  summary.harnessRevision = harnessGit.status === 0 && await realpath(harnessGit.stdout.trim()) === await realpath(project) ? git(project, 'rev-parse', 'HEAD').trim() : null;
+  summary.harnessVersion = JSON.parse(await readFile(join(project, 'package.json'), 'utf8')).version;
+  summary.processTreeSampling = values['process-tree'];
   const code = createHash('sha256');
   for (const file of (await readdir(join(project, 'dist'))).filter((file) => file.endsWith('.js')).sort()) code.update(file).update('\0').update(await readFile(join(project, 'dist', file)));
   summary.harnessDistSha256 = code.digest('hex');
@@ -90,15 +95,17 @@ try {
   const files = git(root, 'ls-files', '-z').split('\0').filter(Boolean);
   const sizes = await Promise.all(files.map(async (file) => (await stat(join(root, file))).size));
   summary.input = { trackedFiles: files.length, sourceFiles: files.filter((file) => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)).length, trackedBytes: sizes.reduce((sum, size) => sum + size, 0) };
-  assert.ok(!files.some((file) => file.startsWith('.prooflane/')), 'Use a HEAD without pre-existing ProofLane state');
+  summary.removedStateInTemporaryCopy = files.filter((file) => file.startsWith('.prooflane/'));
+  await rm(join(root, '.prooflane'), { recursive: true, force: true });
   await mkdir(join(root, 'node_modules'), { recursive: true });
-  await symlink(join(project, 'node_modules/oxlint'), join(root, 'node_modules/oxlint'), 'junction');
-  const manifest = JSON.parse(await readFile(join(project, 'node_modules/oxlint/package.json'), 'utf8'));
+  await symlink(join(toolRoot, 'node_modules/oxlint'), join(root, 'node_modules/oxlint'), 'junction');
+  const manifest = JSON.parse(await readFile(join(toolRoot, 'node_modules/oxlint/package.json'), 'utf8'));
   summary.analyzerVersion = manifest.version;
-  summary.overrides = { 'prooflane.json': { analyzers: ['oxlint'] }, installedTool: 'ProofLane development Oxlint; original analyzer rules retained' };
+  summary.overrides = { 'prooflane.json': { analyzers: ['oxlint'] }, installedTool: 'Oxlint from tool-root; original analyzer rules retained' };
   await writeFile(join(root, 'prooflane.json'), JSON.stringify(summary.overrides['prooflane.json']));
   await writeFile(join(root, '.git/info/exclude'), '\nnode_modules/\n');
   git(root, 'add', '--force', 'prooflane.json');
+  if (summary.removedStateInTemporaryCopy.length) git(root, 'add', '-u', '--', '.prooflane');
   git(root, 'commit', '--quiet', '-m', 'Select benchmark analyzer');
   summary.fixtureRevision = git(root, 'rev-parse', 'HEAD').trim();
   const full = await series('full', 'full');
@@ -106,7 +113,7 @@ try {
   assert.equal(full.analyzers[0].coverage.complete, true);
   const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin.oxlint;
   const start = performance.now();
-  const direct = command(process.execPath, [join(project, 'node_modules/oxlint', bin), '--format', 'json', '--', '.'], root);
+  const direct = command(process.execPath, [join(toolRoot, 'node_modules/oxlint', bin), '--format', 'json', '--', '.'], root);
   summary.directOxlintMs = Math.round(performance.now() - start);
   await writeFile(join(output, 'direct-oxlint.json'), direct.stdout);
   assert.ok([0, 1].includes(direct.status), direct.stderr);

@@ -126,7 +126,7 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 - [x] P1-2：EPUB `pnpm verify:project` 串联 ProofLane full 与原 `check:stage4`。真实全链通过，Playwright 为 57 通过、9 项原有跳过。首轮发现 baseline 缺少末尾换行导致 formatter 失败，已修复 JSON 写入并保留失败日志，没有关闭格式检查。
 - [ ] P1-3：真实开发任务记录器已实现，首个实际集成变更 `6da5ea1..da1841e` 已完成两种顺序共四次全链对照，全部通过。原流程平均 64.056 秒，新流程 65.337 秒；一个变更不足以完成连续日常样本要求，Agent token 与人工介入未测量，保持 null。
 - [x] P2-1：通过真实 CLI 验证 64 MiB evidence 清理、四个并发验证进程的修复历史和独立证据、强制终止 baseline writer 后原文件保持完整且拒绝陈旧锁，显式清理后恢复。容量用例以合法旧记录填充到上限以上；未将其称为分析器产生海量诊断的负载测试。
-- [ ] P2-2：Windows 真实 Agent 中断、跨平台真实仓库与多分析器进程树资源测量。
+- [ ] P2-2：进程树采样和真实子进程校准已实现，EPUB Oxlint + Knip 三次并发分析及采样通过，首轮安装形态不完整的失败保留。跨平台真实仓库 CI 及 Windows 真实 Agent 中断仍待外部环境/授权；不以协议测试替代实际客户端中断。
 - [ ] P2-3：版本化安装包、提交及校验值绑定、可重复安装与升级回退。
 
 P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。
