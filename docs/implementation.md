@@ -122,12 +122,12 @@ Windows 的超时进程树清理、MCP stdin EOF 退出及内部/外部文件链
 ## 正式接入迭代
 
 - [x] P0-1：修复 Svelte 增量漏检，同根因的 Vue、Astro 一并通过真实 CLI 回归。旧实现三项均在 changed 错误放行；修复后 changed/full 均 block，恢复后 pass。最低版本也运行相同用例，常规检查 52 项通过。
-- [ ] P1-1：EPUB 固定提交安装、项目命令、真实 MCP 和两条已审查 warning baseline 已完成，已提交到 `fix/prooflane-integration`；安装版本及构建绑定以该项目 `tools/prooflane/release.json` 为准。非阻塞 CI 已配置，远端验收等待 EPUB 分支推送授权。
+- [x] P1-1：EPUB 固定提交安装、项目命令、真实 MCP 和两条已审查 warning baseline 已完成，已提交到 `fix/prooflane-integration`；安装版本及构建绑定以该项目 `tools/prooflane/release.json` 为准。集成分支 `b27d594` 已推送，[真实项目 CI](https://github.com/foliosmith/epub/actions/runs/38518504321)四个任务的实际步骤全部通过，三平台原始产物已下载核对。
 - [x] P1-2：EPUB `pnpm verify:project` 串联 ProofLane full 与原 `check:stage4`。真实全链通过，Playwright 为 57 通过、9 项原有跳过。首轮发现 baseline 缺少末尾换行导致 formatter 失败，已修复 JSON 写入并保留失败日志，没有关闭格式检查。
 - [ ] P1-3：真实开发任务记录器已实现，首个实际集成变更 `6da5ea1..da1841e` 已完成两种顺序共四次全链对照，全部通过。原流程平均 64.056 秒，新流程 65.337 秒；一个变更不足以完成连续日常样本要求，Agent token 与人工介入未测量，保持 null。
 - [x] P2-1：通过真实 CLI 验证 64 MiB evidence 清理、四个并发验证进程的修复历史和独立证据、强制终止 baseline writer 后原文件保持完整且拒绝陈旧锁，显式清理后恢复。容量用例以合法旧记录填充到上限以上；未将其称为分析器产生海量诊断的负载测试。
-- [ ] P2-2：进程树采样和真实子进程校准已在三平台 CI 通过，Windows 原有 2.5 秒/96 MiB 校准捕获 8 帧和子进程，初始化成本 2.854 秒显式记录。EPUB Oxlint + Knip 三次并发分析及本机真实源码采样通过。EPUB 三平台真实性能 CI 已配置，等待分支推送；Windows 真实 Agent 中断仍需客户端环境，不以协议/资源校准代替。
-- [x] P2-3：版本化内部交付已实现，当前版本以 package.json 为准，干净提交生成不可覆盖安装包及 sourceRevision/SHA-256/integrity 清单；脏工作区与重复输出目录均拒绝。真实 0.1.1 → 0.1.3 → 0.1.1 安装、CLI/MCP 检查及版本一致性通过。版本升级验收发现 MCP 仍硬编码 0.1.0，先记录失败再改为读取实际包版本。
+- [ ] P2-2：进程树采样和真实子进程校准已在三平台 CI 通过，Windows 原有 2.5 秒/96 MiB 校准捕获 8 帧和子进程，初始化成本 2.854 秒显式记录。EPUB Oxlint + Knip 三次并发分析及本机真实源码采样通过。EPUB 三平台真实性能 CI 各完成 11 次调用，错误注入 block、恢复 pass，均确认原工作区未变。用户无 Windows 测试机并明确要求保留真实 Agent 中断待验收，不以协议/资源校准代替。
+- [x] P2-3：版本化内部交付已实现，当前版本以 package.json 为准，干净提交生成不可覆盖安装包及 sourceRevision/SHA-256/integrity 清单；脏工作区与重复输出目录均拒绝。真实 0.1.3 → 0.1.4 → 0.1.3 安装、CLI/MCP 检查及版本一致性通过，记录在 `artifacts/package-upgrade-0.1.4/`。版本升级验收发现 MCP 仍硬编码 0.1.0，先记录失败再改为读取实际包版本。
 
 P0 证据：`artifacts/frameworks-red.log`、`artifacts/frameworks-check.log`、`artifacts/frameworks-minimum.log`；回归也加入最低/推荐工具版本矩阵。
 
@@ -136,3 +136,7 @@ EPUB 原仓库 `private/prooflane-integration/` 保留完整验收日志；`priv
 内部 0.1.1 安装包来自 `1d98bcc`，SHA-256 为 `3412a304135b90782056dae90c7056c89a67e18030e9b74775cbda63ad9e7758`，位于 `artifacts/releases/0.1.1/`，没有发布 registry。`artifacts/package-version-red.log`、`artifacts/package-upgrade-green.log` 和 `artifacts/e2e/package-upgrade-rollback.json` 保存版本失败与完整升级回退证据。57 项常规检查与独立安装包验收通过，跨平台 CI 单独核对。
 
 [3009489 的六组 CI](https://github.com/sunnylost/proofLane/actions/runs/38514975813) 曾全部通过：Linux/macOS 57 项通过；Windows 56 项通过、1 项原有 POSIX SIGINT 跳过。后续同代码 CI 捕获 Windows 观察者冷启动超过 5 秒的新失败，0.1.4 将初始化预算独立设为 20 秒，保留原工作负载及内存断言，详见性能记录；以对应提交的 CI 结果判定该修订。此前生成的 0.1.3 包 SHA-256 为 `a3bb1d201d56266b93075cb47fd767f0332abc61a222d2c67eef5ce4eeed5a82`，保存于 `artifacts/releases/0.1.3/`；升级回退证据单独保存于 `artifacts/package-upgrade-0.1.3/`。EPUB 使用该包的全链通过（浏览器 57 通过、9 项既有跳过）。所有失败保留，不用旧提交的通过覆盖后续失败。
+
+0.1.4 的 [43fcf3a 六组 CI](https://github.com/sunnylost/proofLane/actions/runs/38517672795)全部通过，前一个实现提交 `bc97fa8` 的 CI 也通过。Windows 原工作负载捕获 9 帧、2 个进程，观察者初始化 2.560 秒，采样 RSS 189,216 KiB。CI 构建包位于 `artifacts/releases/0.1.4/`，SHA-256 为 `8d384a33d9ac4eb4c6d43bb940871f14e19ec74ea52b9ffb243afbbe8975817c`；分发前核对了 SHA-256、npm integrity 和 sourceRevision。EPUB `b27d594` 固定采用该包，本机完整项目验收通过（Playwright 57 通过、9 项原有跳过，Rust 原生 3 通过），实际安装的 MCP 版本与检查通过，11 次性能调用均完成且原工作区未变。
+
+EPUB 三平台 CI 原始报告与步骤结果位于 `artifacts/epub-ci-b27d594/`，`acceptance.json` 记录来源版本、提交及核对后的指标。P1-3 的连续日常变更样本仍待后续真实开发积累；P2-2 仅 Windows 真实 Agent 中断按用户决定待验收。没有合并 EPUB 主分支或发布 npm registry。

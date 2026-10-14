@@ -82,3 +82,17 @@ Tara 单文件中位耗时降低约 5.1%，有 baseline 的全量降低约 7.9%�
 Windows CI 的 2.5 秒、96 MiB 子进程校准发现逐次启动 PowerShell 的方式只采到主进程；改成三个字段查询仍未解决，两个失败分别保留在 `artifacts/next-ci-windows-red` 和 `artifacts/sampler-projection-windows-red`。Windows 采样现采用持续进程，先等待首帧再启动被测程序；`startupMs` 记录初始化成本，总墙钟仍包含该成本，不延长校准子进程的生命周期。最终可用性以同一 Windows 校准用例的真实结果为准。
 
 持续进程方案在 `3009489` 的 Windows CI 捕获 8 帧和内存子进程；后续同代码运行暴露 5 秒初始化预算过短，记录在 `artifacts/final-windows-red`。0.1.4 将初始化等待单独设为最多 20 秒，随后仍使用原来的 2.5 秒工作负载及原有内存断言；初始化失败保留其原因，不再被后续健康监测改写为 stalled。初始化与测量耗时均保留，不将更长等待当作性能改善。
+
+0.1.4 的 `43fcf3a` Windows CI 原校准捕获 9 帧、2 个进程，初始化 2.560 秒，采样 RSS 189,216 KiB；Harness 自身 maxRSS 48,188 KiB。原始数据在 `artifacts/sampler-0.1.4-windows-green/`。用户没有 Windows 测试机，明确决定保留真实 Windows Agent 中断待验收。
+
+## EPUB 正式集成的三平台结果
+
+[EPUB b27d594 的 CI](https://github.com/foliosmith/epub/actions/runs/38518504321)使用固定的 0.1.4 私有 tarball、冻结 lockfile 和项目 Oxlint 1.74.0。全量 lint job 与三平台性能 job 的每个步骤均成功；非阻塞 job 的总体状态不是单独的通过依据。三平台各完成 11 次 CLI 调用，120 个源码文件的 full 诊断与直接 Oxlint 一致（两条已有 warning），临时副本注入语法错误时 block、恢复后 pass，原仓库状态保持不变。
+
+| 平台 | full 首次 / 重复墙钟 ms | 无变化增量 ms | full 观察者初始化 ms | full 进程树 RSS 采样 KiB |
+| --- | --- | --- | --- | --- |
+| macOS | 379 / 336 | 230 / 239 | 0 / 0 | 128384 / 82528 |
+| Linux | 764 / 794 | 359 / 362 | 0 / 0 | 145652 / 123360 |
+| Windows | 6163 / 2119 | 1816 / 1769 | 4638 / 596 | 79340 / 113896 |
+
+这些是不同托管机器上的少量带采样结果，不用于平台速度排名。Windows 首次观察者初始化占 4.638 秒，成本真实存在；常规 CLI 默认不启用进程树采样。短调用的采样可能低于进程自身历史 maxRSS，不能把采样值当成真实峰值。证据位于 `artifacts/epub-ci-b27d594/`，包含完整步骤、每次摘要、资源及工具原始报告。项目完整 Rust/WASM/浏览器链另在本机通过，云端这四个 job 不替代全链验收。
