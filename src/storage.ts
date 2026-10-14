@@ -21,7 +21,7 @@ export async function readJson(path: string, maxBytes = 16 * 1024 * 1024): Promi
 }
 
 export async function atomicJson(directory: string, name: string, value: unknown): Promise<void> {
-  const text = JSON.stringify(value, null, 2);
+  const text = JSON.stringify(value, null, 2) + '\n';
   if (Buffer.byteLength(text) > 16 * 1024 * 1024) throw new Error('ProofLane state exceeds 16 MiB');
   const temporary = join(directory, `.tmp-${randomUUID()}`);
   const handle = await open(temporary, 'wx', 0o600);
